@@ -138,10 +138,34 @@ if st.button("🚀 生成专属推荐", type="primary"):
                         st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
                         
                         # 把长长的一串微观标签藏在折叠面板里
-                        with st.expander("🏷️ 点击查看微观剧情标签 (Story Tropes)"):
-                            # 简单清洗一下标签格式，去掉括号和引号，用逗号隔开
-                            clean_tags = str(row['genres_detailed']).replace("['", "").replace("']", "").replace("', '", " • ")
-                            st.write(clean_tags)
+                        # 优化后的高颜值“胶囊标签”面板
+                        with st.expander("🏷️ 核心看点 / 剧情元素"):
+                            import ast
+                            
+                            # 1. 安全解析标签数据
+                            raw_tags = str(row['genres_detailed'])
+                            try:
+                                tags = ast.literal_eval(raw_tags)
+                            except:
+                                tags = raw_tags.replace("['", "").replace("']", "").split("', '")
+                            
+                            # 2. 限制展示数量，防止满屏密密麻麻影响视觉（最多展示前 10 个）
+                            display_tags = tags[:10] if isinstance(tags, list) else []
+                            
+                            # 3. 使用 HTML+CSS 生成圆角胶囊样式 (适配深色/浅色模式的半透明背景)
+                            badges_html = "".join([
+                                f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 12px; '
+                                f'background-color: rgba(130, 130, 130, 0.15); border: 1px solid rgba(130, 130, 130, 0.3); '
+                                f'border-radius: 16px; font-size: 13px; white-space: nowrap;">{tag.title()}</span>'
+                                for tag in display_tags if tag
+                            ])
+                            
+                            # 4. 如果还有更多标签，用优雅的 "+X" 提示
+                            if len(tags) > 10:
+                                badges_html += f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 0px; font-size: 13px; color: gray;">+{len(tags)-10} 更多...</span>'
+                                
+                            # 渲染出自定义的 HTML UI
+                            st.markdown(badges_html, unsafe_allow_html=True)
                             
                     with col_score:
                         # 计算匹配度百分比
