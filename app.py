@@ -5,12 +5,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. 网页全局配置 (设为宽屏模式)
+# 1. Global Page Configuration (Set to wide layout)
 # ==========================================
-st.set_page_config(page_title="动漫双引擎推荐系统", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
 # ==========================================
-# 2. 核心数据加载与缓存
+# 2. Core Data Loading & Caching
 # ==========================================
 @st.cache_data
 def load_and_compute_models():
@@ -37,22 +37,22 @@ def load_and_compute_models():
         pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating').fillna(0)
         item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix), index=pivot_matrix.index, columns=pivot_matrix.index)
     except Exception as e:
-        st.error("⚠️ 协同过滤文件加载失败。")
+        st.error("⚠️ Failed to load Collaborative Filtering files.")
         item_sim_df = pd.DataFrame()
         top10_df = pd.DataFrame()
         
     return animes_df, tfidf_matrix, item_sim_df, top10_df
 
-with st.spinner("🤖 正在加载 AI 推荐引擎，首次启动需要几秒钟..."):
+with st.spinner("🤖 Loading AI Recommendation Engine. Initial startup may take a few seconds..."):
     animes_df, tfidf_matrix, item_sim_df, top10_df = load_and_compute_models()
 
 # ==========================================
-# 3. 定义推荐函数 (加入二次过滤逻辑)
+# 3. Define Recommendation Functions (With secondary filtering logic)
 # ==========================================
 def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score):
     idx_list = df.index[df['title'].str.lower() == anime_title.lower()].tolist()
     if not idx_list:
-        return None, f"❌ 找不到名为 '{anime_title}' 的动漫，请检查拼写。"
+        return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
     idx = idx_list[0]
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     
@@ -65,17 +65,17 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     recs = recs[recs['score'] >= min_score]
     
     if recs.empty:
-        return None, "⚠️ 找不到符合筛选条件的推荐，请放宽左侧的【类型】或【最低评分】限制。"
+        return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
     match = df[df['title'].str.lower() == anime_title.lower()]
     if match.empty:
-        return None, f"❌ 找不到名为 '{anime_title}' 的动漫，请检查拼写。"
+        return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
     target_id = match.iloc[0]['animeID']
     
     if target_id not in sim_df.index:
-        return None, f"🧊 【极寒冷启动拦截】该动漫 (ID:{target_id}) 的真实用户打分过少！\n\n🚨 **CF (协同过滤) 引擎已瘫痪。** \n👉 **系统建议：请前往左侧控制面板，切换至【CBF (内容推荐)】引擎进行降维打击！**"
+        return None, f"🧊 [Severe Cold Start Intercept] This anime (ID:{target_id}) has too few real user ratings!\n\n🚨 **CF (Collaborative Filtering) Engine is down.** \n👉 **System Suggestion: Please go to the left control panel and switch to the [CBF (Content-Based)] engine as a fallback!**"
     
     sim_scores = sim_df[target_id]
     similar_ids = sim_scores.sort_values(ascending=False).index[1:]
@@ -95,49 +95,49 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     recs = recs[recs['score'] >= min_score]
     
     if recs.empty:
-        return None, "⚠️ 找不到符合筛选条件的推荐，请放宽左侧的【类型】或【最低评分】限制。"
+        return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
 
 # ==========================================
-# 4. 界面排版 (UI Layout)
+# 4. UI Layout
 # ==========================================
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
-st.sidebar.header("⚙️ 引擎控制面板")
+st.sidebar.header("⚙️ Engine Control Panel")
 
-engine_choice = st.sidebar.radio("1. 核心算法选择:", ["CF (协同过滤 - 懂人心)", "CBF (内容推荐 - 懂标签)"])
-top_k_choice = st.sidebar.slider("2. 推荐输出数量:", min_value=5, max_value=20, value=10, step=1)
+engine_choice = st.sidebar.radio("1. Core Algorithm Selection:", ["CF (Collaborative Filtering - Crowd Wisdom)", "CBF (Content-Based - Tag Analysis)"])
+top_k_choice = st.sidebar.slider("2. Number of Recommendations:", min_value=5, max_value=20, value=10, step=1)
 
 st.sidebar.divider()
-st.sidebar.subheader("🎛️ 结果二次筛选")
+st.sidebar.subheader("🎛️ Secondary Filtering")
 all_types = [t for t in animes_df['type'].unique() if pd.notna(t) and t != '']
-selected_types = st.sidebar.multiselect("包含指定类型 (留空则不限):", all_types, default=[])
-min_score = st.sidebar.slider("最低大众评分红线:", min_value=0.0, max_value=10.0, value=6.0, step=0.5)
+selected_types = st.sidebar.multiselect("Include Specific Types (Leave blank for all):", all_types, default=[])
+min_score = st.sidebar.slider("Minimum Community Rating:", min_value=0.0, max_value=10.0, value=6.0, step=0.5)
 
-st.title("🎬 动漫双引擎推荐系统")
-st.markdown("发现你的下一部神作！本平台由 **CBF (文本深度学习)** 与 **CF (百万级群体智慧)** 双重 AI 算法驱动。")
+st.title("🎬 Anime Dual-Engine Recommendation System")
+st.markdown("Discover your next masterpiece! This platform is powered by dual AI algorithms: **CBF (Text Deep Learning)** and **CF (Million-level Crowd Wisdom)**.")
 
-tab_search, tab_trending, tab_insights = st.tabs(["🎯 专属 AI 推荐", "🏆 历史热门 Top 10", "📊 算法性能评估 (评委专区)"])
+tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendations", "🏆 All-Time Top 10 Trending", "📊 Algorithm Performance (Benchmarks)"])
 
-# ---------------- Tab 1: 搜索与推荐 ----------------
+# ---------------- Tab 1: Search & Recommend ----------------
 with tab_search:
     col_search, col_demo = st.columns([3, 1])
     with col_search:
-        # 把库里所有的动漫名字提取出来，变成一个列表
+        # Extract all anime names from the database into a list
         all_anime_titles = animes_df['title'].tolist()
-        # 使用 selectbox 替换 text_input，瞬间拥有 Google 级别的联想搜索体验！
+        # Use selectbox instead of text_input for a Google-level auto-complete search experience!
         user_input = st.selectbox(
-            "🔍 请搜索或直接选择一部动漫:", 
+            "🔍 Search or select an anime:", 
             options=all_anime_titles, 
             index=all_anime_titles.index("Death Note") if "Death Note" in all_anime_titles else 0
         )
     with col_demo:
         st.markdown("<br>", unsafe_allow_html=True) 
-        if st.button("🚨 评委点此: 模拟冷门番剧"):
-            st.warning('已加载靶标：请在搜索框输入 `s-CRY-ed`，并使用 **CF 引擎** 点击生成，查看系统崩溃拦截！')
+        if st.button("🚨 Demo: Simulate Cold-Start Anime"):
+            st.warning('Target loaded: Please search for `s-CRY-ed` in the search box, select the **CF Engine**, and generate to see the system interception!')
             
-    if st.button("🚀 激活 AI 生成专属推荐", type="primary"):
+    if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
-            if engine_choice == "CBF (内容推荐 - 懂标签)":
+            if engine_choice == "CBF (Content-Based - Tag Analysis)":
                 recs, error_msg = get_cbf_recommendations(user_input, animes_df, tfidf_matrix, top_k_choice, selected_types, min_score)
             else:
                 recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
@@ -145,7 +145,7 @@ with tab_search:
             if error_msg:
                 st.error(error_msg) 
             else:
-                st.success("✅ 成功为您生成结果！(基于大厂标准已过滤掉低分烂片)")
+                st.success("✅ Results generated successfully! (Low-rated items filtered out based on industry standards)")
                 st.markdown("---") 
                 
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
@@ -157,9 +157,9 @@ with tab_search:
                         
                         with col_info:
                             st.subheader(f"🏅 {row['title']}")
-                            st.caption(f"**类型**: {row['type']}  |  **社区评分**: ⭐ {row['score']:.2f}")
+                            st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['score']:.2f}")
                             
-                            with st.expander("🏷️ 核心看点 / Story Tropes"):
+                            with st.expander("🏷️ Core Tropes / Tags"):
                                 raw_tags = str(row['genres_detailed'])
                                 try:
                                     tags = ast.literal_eval(raw_tags)
@@ -176,25 +176,25 @@ with tab_search:
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
                         with col_score:
-                            # 方案 3：纯净星级制 (最符合直觉，零认知负担)
+                            # Option 3: Pure Star Rating System (Most intuitive, zero cognitive load)
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
                             
-                            # 星级与清爽文案判定
+                            # Star rating and clean text assessment
                             if match_pct >= 90:
                                 stars = "★★★★★"
-                                level_text = "完美命中"
-                                star_color = "#FFD700"  # 耀眼金
+                                level_text = "Perfect Match"
+                                star_color = "#FFD700"  # Dazzling Gold
                             elif match_pct >= 75:
                                 stars = "★★★★☆"
-                                level_text = "高度重合"
-                                star_color = "#F39C12"  # 活力橘金
+                                level_text = "Highly Similar"
+                                star_color = "#F39C12"  # Vibrant Orange-Gold
                             else:
                                 stars = "★★★☆☆"
-                                level_text = "风格关联"
-                                star_color = "#AAB7B8"  # 质感灰银
+                                level_text = "Style Correlated"
+                                star_color = "#AAB7B8"  # Textured Silver-Gray
                                 
-                            # 使用 HTML 渲染干净的星级排版 (星星在上，小字在下)
+                            # Use HTML to render a clean star layout (Stars on top, subtitle below)
                             st.markdown(f"""
                                 <div style='text-align: right; padding-top: 12px;'>
                                     <div style='font-size: 20px; color: {star_color}; letter-spacing: 2px;'>{stars}</div>
@@ -202,33 +202,33 @@ with tab_search:
                                 </div>
                             """, unsafe_allow_html=True)
         else:
-            st.info("请输入一部动漫的名字哦！")
+            st.info("Please select or enter an anime name!")
 
-# ---------------- Tab 2: 热门排行榜 ----------------
+# ---------------- Tab 2: Trending Leaderboard ----------------
 with tab_trending:
-    st.subheader("🏆 社区最受欢迎动漫 Top 10")
-    st.markdown("该榜单基于平台真实用户的 **评分频率数据** 提取（过滤掉了冷门噪声）。")
+    st.subheader("🏆 Community's Most Popular Anime Top 10")
+    st.markdown("This list is extracted based on **rating frequency data** from real platform users (filtering out niche noise).")
     
     if not top10_df.empty:
         for rank, (index, row) in enumerate(top10_df.iterrows()):
             with st.container(border=True):
-                # 修复！使用纯 HTML 替代 ### 标题，彻底消灭 link 锚点图标
+                # Fix: Use pure HTML instead of ### headers to completely eliminate the link anchor icon
                 st.markdown(f"<div style='font-size: 18px; font-weight: bold; margin-bottom: 8px;'>👑 No.{rank + 1} &nbsp; {row['title']}</div>", unsafe_allow_html=True)
-                st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
+                st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['score']}")
     else:
-        st.info("数据加载中...")
+        st.info("Loading data...")
 
-# ---------------- Tab 3: 数据洞察面板 ----------------
+# ---------------- Tab 3: Data Insights Panel ----------------
 with tab_insights:
-    st.subheader("📊 底层算法性能基准 (Benchmarks)")
-    st.markdown("大作业实验环境下的离线评估报告（42,797 组 Test Data 测试结果）：")
+    st.subheader("📊 Underlying Algorithm Benchmarks")
+    st.markdown("Offline evaluation report under experimental environment (Test results on 42,797 sets of Data):")
     
     col1, col2, col3 = st.columns(3)
-    col1.metric("CF RMSE (协同过滤误差)", "1.377", "- 预测更准")
-    col2.metric("CBF RMSE (内容引擎误差)", "1.411", "+ 覆盖更广")
-    col3.metric("CF 推荐命中率 (Precision@10)", "16.8%", "+ 优于 CBF 的 15.4%")
+    col1.metric("CF RMSE (Collaborative Error)", "1.377", "- More Accurate")
+    col2.metric("CBF RMSE (Content Error)", "1.411", "+ Broader Coverage")
+    col3.metric("CF Hit Rate (Precision@10)", "16.8%", "+ Better than CBF's 15.4%")
     
     st.divider()
-    st.subheader("📈 当前库内动漫类型分布 (EDA)")
+    st.subheader("📈 Current Anime Type Distribution (EDA)")
     type_counts = animes_df['type'].value_counts()
     st.bar_chart(type_counts, color="#ff4b4b")
