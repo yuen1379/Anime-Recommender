@@ -139,6 +139,7 @@ if st.button("🚀 生成专属推荐", type="primary"):
                         
                         # 把长长的一串微观标签藏在折叠面板里
                         # 优化后的高颜值“胶囊标签”面板
+                        # 优化后的高颜值“胶囊标签”面板 (全量展示版)
                         with st.expander("🏷️ 核心看点 / 剧情元素"):
                             import ast
                             
@@ -149,10 +150,10 @@ if st.button("🚀 生成专属推荐", type="primary"):
                             except:
                                 tags = raw_tags.replace("['", "").replace("']", "").split("', '")
                             
-                            # 2. 限制展示数量，防止满屏密密麻麻影响视觉（最多展示前 10 个）
-                            display_tags = tags[:10] if isinstance(tags, list) else []
+                            # 2. 获取所有标签 (解除数量封印)
+                            display_tags = tags if isinstance(tags, list) else []
                             
-                            # 3. 使用 HTML+CSS 生成圆角胶囊样式 (适配深色/浅色模式的半透明背景)
+                            # 3. 使用 HTML+CSS 生成圆角胶囊样式 (自动换行排列，像云朵一样)
                             badges_html = "".join([
                                 f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 12px; '
                                 f'background-color: rgba(130, 130, 130, 0.15); border: 1px solid rgba(130, 130, 130, 0.3); '
@@ -160,11 +161,7 @@ if st.button("🚀 生成专属推荐", type="primary"):
                                 for tag in display_tags if tag
                             ])
                             
-                            # 4. 如果还有更多标签，用优雅的 "+X" 提示
-                            if len(tags) > 10:
-                                badges_html += f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 0px; font-size: 13px; color: gray;">+{len(tags)-10} 更多...</span>'
-                                
-                            # 渲染出自定义的 HTML UI
+                            # 4. 渲染出完整的标签云
                             st.markdown(badges_html, unsafe_allow_html=True)
                             
                     with col_score:
