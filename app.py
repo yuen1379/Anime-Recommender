@@ -138,7 +138,7 @@ with tab_search:
             if error_msg:
                 st.error(error_msg) 
             else:
-                st.success(f"✅ 成功为您生成结果！(基于大厂标准已过滤掉低分烂片)")
+                st.success("✅ 成功为您生成结果！(基于大厂标准已过滤掉低分烂片)")
                 st.markdown("---") 
                 
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
@@ -152,7 +152,6 @@ with tab_search:
                             st.subheader(f"🏅 {row['title']}")
                             st.caption(f"**类型**: {row['type']}  |  **社区评分**: ⭐ {row['score']:.2f}")
                             
-                            # 恢复！高颜值“胶囊标签”面板
                             with st.expander("🏷️ 核心看点 / Story Tropes"):
                                 raw_tags = str(row['genres_detailed'])
                                 try:
@@ -169,7 +168,7 @@ with tab_search:
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
-                       with col_score:
+                        with col_score:
                             # 彻底抛弃冷冰冰的百分比，转化为情绪化决策评级 (Non-Tech User Friendly)
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
