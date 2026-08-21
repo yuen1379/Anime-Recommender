@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import ast
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -9,7 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="动漫双引擎推荐系统", page_icon="🎬", layout="wide")
 
 # ==========================================
-# 2. 核心数据加载与缓存 (核心算法保持不变)
+# 2. 核心数据加载与缓存
 # ==========================================
 @st.cache_data
 def load_and_compute_models():
@@ -29,16 +30,22 @@ def load_and_compute_models():
         active_animes = active_animes[active_animes >= 50].index
         filtered_ratings = filtered_ratings[filtered_ratings['animeID'].isin(active_animes)]
         
+        # 新增：计算历史热门 Top 10 (根据真实打分人数统计)
+        top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
+        # 按照热门顺序提取并重置索引
+        top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
+        
         pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating').fillna(0)
         item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix), index=pivot_matrix.index, columns=pivot_matrix.index)
     except Exception as e:
         st.error("⚠️ 协同过滤文件加载失败。")
         item_sim_df = pd.DataFrame()
+        top10_df = pd.DataFrame()
         
-    return animes_df, tfidf_matrix, item_sim_df
+    return animes_df, tfidf_matrix, item_sim_df, top10_df
 
 with st.spinner("🤖 正在加载 AI 推荐引擎，请稍候..."):
-    animes_df, tfidf_matrix, item_sim_df = load_and_compute_models()
+    animes_df, tfidf_matrix, item_sim_df, top10_df = load_and_compute_models()
 
 # ==========================================
 # 3. 定义推荐函数 (保持不变)
@@ -51,7 +58,6 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k):
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     similar_indices = sim_scores.argsort()[-(top_k+1):][::-1][1:]
     recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed']].copy()
-    recs['similarity_score'] = sim_scores[similar_indices]
     return recs, None
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k):
@@ -70,16 +76,14 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k):
     for aid in similar_ids:
         match_anime = df[df['animeID'] == aid]
         if not match_anime.empty:
-            row = match_anime.iloc[0].copy()
-            row['cf_similarity'] = sim_scores[aid]
-            results.append(row)
-    return pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'cf_similarity']], None
+            results.append(match_anime.iloc[0].copy())
+    return pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed']], None
 
 # ==========================================
 # 4. 界面排版 (UI Layout)
 # ==========================================
 # --- 左侧边栏 (Sidebar) ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100) # 放个小图标增加专业感
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
 st.sidebar.header("⚙️ 控制面板")
 
 engine_choice = st.sidebar.radio(
@@ -87,7 +91,6 @@ engine_choice = st.sidebar.radio(
     ["CF (协同过滤 - 懂人心)", "CBF (内容推荐 - 懂标签)"]
 )
 
-# 新增：让用户自己滑块选择想看几个推荐 (交互感拉满！)
 top_k_choice = st.sidebar.slider("推荐数量 (Top-K):", min_value=5, max_value=20, value=10, step=1)
 
 st.sidebar.divider()
@@ -99,77 +102,72 @@ st.sidebar.info(
 
 # --- 主体内容区 (Main Area) ---
 st.title("🎬 动漫双引擎推荐系统")
-st.markdown("输入你喜欢的动漫，AI 将根据你选择的底层算法，为你寻找下一部神作！")
+st.markdown("发现你的下一部神作！本平台由基于内容的过滤 (CBF) 与协同过滤 (CF) 双重 AI 算法驱动。")
 
-# 搜索框居中放宽
-user_input = st.text_input("🔍 请输入动漫名称 (如: Death Note, Toradora!, s-CRY-ed):", value="Death Note")
+# 引入 Tabs 导航栏机制
+tab_search, tab_trending = st.tabs(["🎯 专属 AI 推荐", "🏆 历史热门 Top 10"])
 
-if st.button("🚀 生成专属推荐", type="primary"):
-    if user_input:
-        if engine_choice == "CBF (内容推荐 - 懂标签)":
-            recs, error_msg = get_cbf_recommendations(user_input, animes_df, tfidf_matrix, top_k=top_k_choice)
-        else:
-            recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k=top_k_choice)
-            
-        # 结果展示区
-        # ==========================================
-        # 结果展示区 (Netflix 卡片式高级 UI)
-        # ==========================================
-        if error_msg:
-            st.warning(error_msg)
-        else:
-            st.success(f"✅ 成功为您找到与《{user_input}》最相似的 {top_k_choice} 部动漫：")
-            st.markdown("---") # 加一条分割线
-            
-            # 动态判断当前用的是哪种相似度分数
-            sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
-            
-            # 遍历推荐结果，一张一张画卡片
-            for index, row in recs.iterrows():
-                # 使用 container(border=True) 制造卡片效果
-                with st.container(border=True):
-                    # 把卡片分成左右两列 (左边占 3 份，右边占 1 份)
-                    col_info, col_score = st.columns([3, 1])
+# ---------------- Tab 1: 搜索与推荐 ----------------
+with tab_search:
+    user_input = st.text_input("🔍 请输入动漫名称 (如: Death Note, Toradora!, s-CRY-ed):", value="Death Note")
+
+    if st.button("🚀 生成专属推荐", type="primary"):
+        if user_input:
+            if engine_choice == "CBF (内容推荐 - 懂标签)":
+                recs, error_msg = get_cbf_recommendations(user_input, animes_df, tfidf_matrix, top_k=top_k_choice)
+            else:
+                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k=top_k_choice)
+                
+            if error_msg:
+                st.warning(error_msg)
+            else:
+                st.success(f"✅ 成功为您找到与《{user_input}》最相似的 {top_k_choice} 部动漫：")
+                st.markdown("---") 
+                
+                # 遍历推荐结果
+                for rank_idx, (index, row) in enumerate(recs.iterrows()):
                     
-                    with col_info:
-                        # 动漫标题 (加大加粗)
-                        st.subheader(f"🎬 {row['title']}")
-                        # 基础信息 (使用灰色小字)
-                        st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
+                    # 智能化评级：放弃百分比，采用直观的星火等级
+                    if rank_idx < 3:
+                        fire_level = "🔥🔥🔥 极度契合"
+                    elif rank_idx < 6:
+                        fire_level = "🔥🔥 强烈推荐"
+                    else:
+                        fire_level = "🔥 风格相近"
                         
-                        # 把长长的一串微观标签藏在折叠面板里
-                        # 优化后的高颜值“胶囊标签”面板
-                        # 优化后的高颜值“胶囊标签”面板 (全量展示版)
-                        with st.expander("🏷️ 核心看点 / 剧情元素"):
-                            import ast
+                    with st.container(border=True):
+                        col_info, col_score = st.columns([3, 1])
+                        
+                        with col_info:
+                            st.subheader(f"🎬 {row['title']}")
+                            st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
                             
-                            # 1. 安全解析标签数据
-                            raw_tags = str(row['genres_detailed'])
-                            try:
-                                tags = ast.literal_eval(raw_tags)
-                            except:
-                                tags = raw_tags.replace("['", "").replace("']", "").split("', '")
-                            
-                            # 2. 获取所有标签 (解除数量封印)
-                            display_tags = tags if isinstance(tags, list) else []
-                            
-                            # 3. 使用 HTML+CSS 生成圆角胶囊样式 (自动换行排列，像云朵一样)
-                            badges_html = "".join([
-                                f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 12px; '
-                                f'background-color: rgba(130, 130, 130, 0.15); border: 1px solid rgba(130, 130, 130, 0.3); '
-                                f'border-radius: 16px; font-size: 13px; white-space: nowrap;">{tag.title()}</span>'
-                                for tag in display_tags if tag
-                            ])
-                            
-                            # 4. 渲染出完整的标签云
-                            st.markdown(badges_html, unsafe_allow_html=True)
-                            
-                    with col_score:
-                        # 计算匹配度百分比
-                        match_pct = float(row[sim_col]) * 100
-                        # 绘制数据指标和大数字
-                        st.metric(label="✨ AI 匹配度", value=f"{match_pct:.1f}%")
-                        # 绘制视觉进度条 (数值需在0.0到1.0之间，若出现极其罕见的>1截断处理)
-                        st.progress(min(float(row[sim_col]), 1.0))
+                            # 极简纯净版标签展示
+                            with st.expander("🏷️ 核心看点 / 剧情元素"):
+                                raw_tags = str(row['genres_detailed'])
+                                try:
+                                    tags = ast.literal_eval(raw_tags)
+                                except:
+                                    tags = raw_tags.replace("['", "").replace("']", "").split("', '")
+                                clean_text = " • ".join([tag.title() for tag in tags if tag])
+                                st.write(clean_text)
+                                
+                        with col_score:
+                            # 展示情绪价值拉满的评价文案
+                            st.metric(label="✨ 推荐指数", value=fire_level)
+        else:
+            st.info("请输入一部动漫的名字哦！")
+
+# ---------------- Tab 2: 热门排行榜 ----------------
+with tab_trending:
+    st.subheader("🏆 社区最受欢迎动漫 Top 10")
+    st.markdown("基于平台真实用户的 **百万次打分数据** 统计得出（仅收录高质量活跃数据）。")
+    
+    if not top10_df.empty:
+        # 展示 Top 10
+        for rank, (index, row) in enumerate(top10_df.iterrows()):
+            with st.container(border=True):
+                st.markdown(f"### 🏅 No.{rank + 1}  **{row['title']}**")
+                st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
     else:
-        st.info("请输入一部动漫的名字哦！")
+        st.info("数据暂未加载...")
