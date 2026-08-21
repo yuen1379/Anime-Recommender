@@ -124,17 +124,14 @@ with tab_search:
                 st.success(f"✅ 成功为您找到与《{user_input}》最相似的 {top_k_choice} 部动漫：")
                 st.markdown("---") 
                 
+                # ==========================================
+                # 大厂级 UX 技巧：相对分数归一化 (Netflix Style)
+                # ==========================================
+                # 拿到当前推荐列表里的最高相似度分数
+                max_sim = float(recs[sim_col].max())
+                
                 # 遍历推荐结果
                 for rank_idx, (index, row) in enumerate(recs.iterrows()):
-                    
-                    # 智能化评级：放弃百分比，采用直观的星火等级
-                    if rank_idx < 3:
-                        fire_level = "🔥🔥🔥 极度契合"
-                    elif rank_idx < 6:
-                        fire_level = "🔥🔥 强烈推荐"
-                    else:
-                        fire_level = "🔥 风格相近"
-                        
                     with st.container(border=True):
                         col_info, col_score = st.columns([3, 1])
                         
@@ -153,8 +150,15 @@ with tab_search:
                                 st.write(clean_text)
                                 
                         with col_score:
-                            # 展示情绪价值拉满的评价文案
-                            st.metric(label="✨ 推荐指数", value=fire_level)
+                            # 1. 算法分数转换：将第一名强制映射为 99% 匹配，其余按比例缩放
+                            raw_score = float(row[sim_col])
+                            match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
+                            
+                            # 2. 直观的数据展示 (整数百分比)
+                            st.metric(label="🎯 算法匹配度", value=f"{match_pct}%")
+                            
+                            # 3. 进度条视觉辅助 (把 0-100 的整数变回 0.0-1.0 给组件渲染)
+                            st.progress(match_pct / 100.0)
         else:
             st.info("请输入一部动漫的名字哦！")
 
