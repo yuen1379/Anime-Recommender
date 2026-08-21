@@ -169,26 +169,29 @@ with tab_search:
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
                         with col_score:
-                            # 彻底抛弃冷冰冰的百分比，转化为情绪化决策评级 (Non-Tech User Friendly)
+                            # 方案 3：纯净星级制 (最符合直觉，零认知负担)
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
                             
-                            # 基于算法分数的色彩心理学评级
+                            # 星级与清爽文案判定
                             if match_pct >= 90:
-                                level_text = "✨ 必看首选"
-                                color = "#ff4b4b"  # 醒目红（强引导）
+                                stars = "★★★★★"
+                                level_text = "完美命中"
+                                star_color = "#FFD700"  # 耀眼金
                             elif match_pct >= 75:
-                                level_text = "👍 强烈推荐"
-                                color = "#ff9900"  # 活力橙（高推荐）
+                                stars = "★★★★☆"
+                                level_text = "高度重合"
+                                star_color = "#F39C12"  # 活力橘金
                             else:
-                                level_text = "👀 风格相近"
-                                color = "#00aaff"  # 探索蓝（轻推荐）
+                                stars = "★★★☆☆"
+                                level_text = "风格关联"
+                                star_color = "#AAB7B8"  # 质感灰银
                                 
-                            # 使用 HTML 渲染高颜值文本排版
+                            # 使用 HTML 渲染干净的星级排版 (星星在上，小字在下)
                             st.markdown(f"""
-                                <div style='text-align: right; padding-top: 15px;'>
-                                    <div style='font-size: 13px; color: #888; margin-bottom: 4px;'>系统评级</div>
-                                    <div style='font-size: 18px; font-weight: bold; color: {color};'>{level_text}</div>
+                                <div style='text-align: right; padding-top: 12px;'>
+                                    <div style='font-size: 20px; color: {star_color}; letter-spacing: 2px;'>{stars}</div>
+                                    <div style='font-size: 13px; color: #888; margin-top: 4px; font-weight: 500;'>{level_text}</div>
                                 </div>
                             """, unsafe_allow_html=True)
         else:
