@@ -112,11 +112,43 @@ if st.button("🚀 生成专属推荐", type="primary"):
             recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k=top_k_choice)
             
         # 结果展示区
+        # ==========================================
+        # 结果展示区 (Netflix 卡片式高级 UI)
+        # ==========================================
         if error_msg:
             st.warning(error_msg)
         else:
             st.success(f"✅ 成功为您找到与《{user_input}》最相似的 {top_k_choice} 部动漫：")
-            # 使用更加清爽的数据表展示方式
-            st.dataframe(recs, use_container_width=True, hide_index=True)
+            st.markdown("---") # 加一条分割线
+            
+            # 动态判断当前用的是哪种相似度分数
+            sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
+            
+            # 遍历推荐结果，一张一张画卡片
+            for index, row in recs.iterrows():
+                # 使用 container(border=True) 制造卡片效果
+                with st.container(border=True):
+                    # 把卡片分成左右两列 (左边占 3 份，右边占 1 份)
+                    col_info, col_score = st.columns([3, 1])
+                    
+                    with col_info:
+                        # 动漫标题 (加大加粗)
+                        st.subheader(f"🎬 {row['title']}")
+                        # 基础信息 (使用灰色小字)
+                        st.caption(f"**类型**: {row['type']}  |  **大众评分**: ⭐ {row['score']}")
+                        
+                        # 把长长的一串微观标签藏在折叠面板里
+                        with st.expander("🏷️ 点击查看微观剧情标签 (Story Tropes)"):
+                            # 简单清洗一下标签格式，去掉括号和引号，用逗号隔开
+                            clean_tags = str(row['genres_detailed']).replace("['", "").replace("']", "").replace("', '", " • ")
+                            st.write(clean_tags)
+                            
+                    with col_score:
+                        # 计算匹配度百分比
+                        match_pct = float(row[sim_col]) * 100
+                        # 绘制数据指标和大数字
+                        st.metric(label="✨ AI 匹配度", value=f"{match_pct:.1f}%")
+                        # 绘制视觉进度条 (数值需在0.0到1.0之间，若出现极其罕见的>1截断处理)
+                        st.progress(min(float(row[sim_col]), 1.0))
     else:
         st.info("请输入一部动漫的名字哦！")
