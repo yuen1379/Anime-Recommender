@@ -169,14 +169,29 @@ with tab_search:
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
-                        with col_score:
-                            # 恢复！Netflix 级归一化匹配度与进度条
+                       with col_score:
+                            # 彻底抛弃冷冰冰的百分比，转化为情绪化决策评级 (Non-Tech User Friendly)
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
-                            fire = "🔥🔥🔥" if match_pct >= 90 else ("🔥🔥" if match_pct >= 75 else "🔥")
                             
-                            st.metric(label=f"🎯 AI 匹配度 {fire}", value=f"{match_pct}%")
-                            st.progress(match_pct / 100.0)
+                            # 基于算法分数的色彩心理学评级
+                            if match_pct >= 90:
+                                level_text = "✨ 必看首选"
+                                color = "#ff4b4b"  # 醒目红（强引导）
+                            elif match_pct >= 75:
+                                level_text = "👍 强烈推荐"
+                                color = "#ff9900"  # 活力橙（高推荐）
+                            else:
+                                level_text = "👀 风格相近"
+                                color = "#00aaff"  # 探索蓝（轻推荐）
+                                
+                            # 使用 HTML 渲染高颜值文本排版
+                            st.markdown(f"""
+                                <div style='text-align: right; padding-top: 15px;'>
+                                    <div style='font-size: 13px; color: #888; margin-bottom: 4px;'>系统评级</div>
+                                    <div style='font-size: 18px; font-weight: bold; color: {color};'>{level_text}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
         else:
             st.info("请输入一部动漫的名字哦！")
 
