@@ -57,7 +57,10 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k):
     idx = idx_list[0]
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     similar_indices = sim_scores.argsort()[-(top_k+1):][::-1][1:]
+    
+    # 修复：加上 similarity_score 列
     recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed']].copy()
+    recs['similarity_score'] = sim_scores[similar_indices]
     return recs, None
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k):
@@ -76,8 +79,12 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k):
     for aid in similar_ids:
         match_anime = df[df['animeID'] == aid]
         if not match_anime.empty:
-            results.append(match_anime.iloc[0].copy())
-    return pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed']], None
+            row = match_anime.iloc[0].copy()
+            # 修复：加上 cf_similarity 列
+            row['cf_similarity'] = sim_scores[aid]
+            results.append(row)
+            
+    return pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'cf_similarity']], None
 
 # ==========================================
 # 4. 界面排版 (UI Layout)
@@ -124,9 +131,9 @@ with tab_search:
                 st.success(f"✅ 成功为您找到与《{user_input}》最相似的 {top_k_choice} 部动漫：")
                 st.markdown("---") 
                 
-                # ==========================================
-                # 大厂级 UX 技巧：相对分数归一化 (Netflix Style)
-                # ==========================================
+                # 修复：动态判断当前用的是哪种相似度列名称
+                sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
+                
                 # 拿到当前推荐列表里的最高相似度分数
                 max_sim = float(recs[sim_col].max())
                 
@@ -134,6 +141,7 @@ with tab_search:
                 for rank_idx, (index, row) in enumerate(recs.iterrows()):
                     with st.container(border=True):
                         col_info, col_score = st.columns([3, 1])
+
                         
                         with col_info:
                             st.subheader(f"🎬 {row['title']}")
