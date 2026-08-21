@@ -122,7 +122,14 @@ tab_search, tab_trending, tab_insights = st.tabs(["🎯 专属 AI 推荐", "🏆
 with tab_search:
     col_search, col_demo = st.columns([3, 1])
     with col_search:
-        user_input = st.text_input("🔍 请输入动漫名称 (支持英文名):", value="Death Note")
+        # 把库里所有的动漫名字提取出来，变成一个列表
+        all_anime_titles = animes_df['title'].tolist()
+        # 使用 selectbox 替换 text_input，瞬间拥有 Google 级别的联想搜索体验！
+        user_input = st.selectbox(
+            "🔍 请搜索或直接选择一部动漫:", 
+            options=all_anime_titles, 
+            index=all_anime_titles.index("Death Note") if "Death Note" in all_anime_titles else 0
+        )
     with col_demo:
         st.markdown("<br>", unsafe_allow_html=True) 
         if st.button("🚨 评委点此: 模拟冷门番剧"):
