@@ -146,6 +146,20 @@ with tab_search:
                 st.error(error_msg) 
             else:
                 st.success("✅ Results generated successfully! (Low-rated items filtered out based on industry standards)")
+                # ------------------- 新增：展示目标动漫的档案卡 -------------------
+                target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
+                
+                # 清洗目标动漫的标签
+                raw_target_tags = str(target_anime['genres_detailed'])
+                try:
+                    target_tags = ast.literal_eval(raw_target_tags)
+                except:
+                    target_tags = raw_target_tags.replace("['", "").replace("']", "").split("', '")
+                target_clean_tags = " • ".join([t.title() for t in target_tags if t])
+                
+                # 用一个信息框展示它
+                st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **DNA Tags:** {target_clean_tags}")
+                # ----------------------------------------------------------------
                 st.markdown("---") 
                 
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
