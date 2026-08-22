@@ -253,10 +253,10 @@ with tab_insights:
     """)
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CF RMSE", "1.377", "- Lower Error 🏆")
-    col2.metric("CBF RMSE", "1.411", "+ Higher Error")
-    col3.metric("CF Hit Rate (P@10)", "12.0%", "+ Better Relevance 🏆")
-    col4.metric("CBF Hit Rate (P@10)", "11.1%", "- Lower Relevance")
+    col1.metric("CF RMSE", "1.259", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.426", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "13.4%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "10.3%", "- Lower Relevance")
     
     st.divider()
     
@@ -271,18 +271,18 @@ with tab_insights:
             "F1-Score@10 (Balance Score) ↑"
         ],
         "CF (Community Favorites)": [
-            "1.377 (Winner 🏆)", 
-            "83.5% (Winner 🏆)", 
-            "12.0% (Winner 🏆)", 
-            "3.64%",
-            "0.056 (Winner 🏆)"
+            "1.259 (Winner 🏆)", 
+            "83.4% (Winner 🏆)", 
+            "13.4% (Winner 🏆)", 
+            "4.3% (Winner 🏆)",
+            "0.065 (Winner 🏆)"
         ],
         "CBF (Story DNA)": [
-            "1.411", 
-            "81.2%",
-            "11.1%", 
-            "3.67% (Winner 🏆)",
-            "0.055"
+            "1.426", 
+            "81.6%",
+            "10.3%", 
+            "3.1%",
+            "0.047"
         ]
     }
     eval_df = pd.DataFrame(eval_data)
