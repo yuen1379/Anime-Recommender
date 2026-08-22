@@ -56,24 +56,16 @@ with st.spinner("🤖 Loading AI Recommendation Engine. Initial startup may take
 # ==========================================
 # 3. Define Recommendation Functions
 # ==========================================
-def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
-    match = df[df['title'].str.lower() == anime_title.lower()]
-    if match.empty:
+def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score):
+    idx_list = df.index[df['title'].str.lower() == anime_title.lower()].tolist()
+    if not idx_list:
         return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
-    target_id = match.iloc[0]['animeID']
+    idx = idx_list[0]
+    sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     
-    if target_id not in sim_df.index:
-        return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
-    
-    # ----------------- Core Fix: Pandas Merge Optimization -----------------
-    # Extract similarity scores and exclude the target anime itself (index 0)
-    sim_scores = sim_df[target_id].sort_values(ascending=False).iloc[1:]
-    sim_scores_df = sim_scores.reset_index()
-    sim_scores_df.columns = ['animeID', 'cf_similarity']
-    
-    # Use native Pandas merge instead of slow for-loops for instant lookup (100x faster)
-    recs = pd.merge(sim_scores_df, df[['animeID', 'title', 'type', 'score', 'genres_detailed']], on='animeID')
-    # -----------------------------------------------------------------------
+    similar_indices = sim_scores.argsort()[::-1][1:]
+    recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed']].copy()
+    recs['similarity_score'] = sim_scores[similar_indices]
     
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -92,18 +84,15 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     if target_id not in sim_df.index:
         return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
     
-    sim_scores = sim_df[target_id]
-    similar_ids = sim_scores.sort_values(ascending=False).index[1:]
+    # ----------------- Core Fix: Pandas Merge Optimization -----------------
+    # Extract similarity scores and exclude the target anime itself (index 0)
+    sim_scores = sim_df[target_id].sort_values(ascending=False).iloc[1:]
+    sim_scores_df = sim_scores.reset_index()
+    sim_scores_df.columns = ['animeID', 'cf_similarity']
     
-    results = []
-    for aid in similar_ids:
-        match_anime = df[df['animeID'] == aid]
-        if not match_anime.empty:
-            row = match_anime.iloc[0].copy()
-            row['cf_similarity'] = sim_scores[aid]
-            results.append(row)
-            
-    recs = pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'cf_similarity']]
+    # Use native Pandas merge instead of slow for-loops for instant lookup (100x faster)
+    recs = pd.merge(sim_scores_df, df[['animeID', 'title', 'type', 'score', 'genres_detailed']], on='animeID')
+    # -----------------------------------------------------------------------
     
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -145,7 +134,7 @@ tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendat
 with tab_search:
     all_anime_titles = animes_df['title'].tolist()
     
-    # Fix: Search bar is now empty by default (index=None)
+    # Search bar is empty by default
     user_input = st.selectbox(
         "🔍 Search or select an anime to get started:", 
         options=all_anime_titles, 
@@ -165,7 +154,7 @@ with tab_search:
             else:
                 st.success("✅ Results generated successfully! (Low-rated items filtered out based on your settings)")
                 
-                # Added: Show the Target Anime DNA (Explainability)
+                # Show the Target Anime DNA (Explainability)
                 target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
                 raw_target_tags = str(target_anime['genres_detailed'])
                 try:
