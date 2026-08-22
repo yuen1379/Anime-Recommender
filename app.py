@@ -291,8 +291,8 @@ with tab_insights:
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
     
-    * **Collaborative Filtering (CF)** is mathematically superior in **Accuracy (83.5%)** and **Precision (12.0%)** because it leverages actual human behavior and crowd wisdom. It excels at predicting what users truly want.
-    * **Content-Based Filtering (CBF)** narrowly wins in **Recall** and fundamentally solves the **'Cold-Start Problem'**. It requires zero historical user data, making it essential for brand new anime, and breaks the 'Filter Bubble' by recommending a wider range of genres.
+    * **Collaborative Filtering (CF)** swept all numerical metrics across the board (Accuracy, Precision, Recall, F1) because it effectively leverages actual human behavior and mitigates rating bias via Pearson Correlation. It excels at predicting what users truly want.
+    * **Content-Based Filtering (CBF)** may score lower in raw offline metrics, but it fundamentally solves the **'Cold-Start Problem'**. It requires zero historical user data, making it computationally essential for newly released anime, and provides vital system stability when CF fails.
     
-    **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine (Hybrid) System**—using CF for highly-rated popular titles, and seamlessly falling back to CBF when facing cold-start data.
+    **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine (Hybrid) System**—using CF for highly-rated popular titles to maximize accuracy, and seamlessly falling back to CBF when facing zero-data environments.
     """)
