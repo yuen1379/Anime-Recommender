@@ -34,15 +34,8 @@ def load_and_compute_models():
         top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
         top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
         
-        # ----------------- Core Fix: Adjusted Cosine (Mean-Centering) -----------------
-        # Create the initial pivot matrix without filling NAs
-        pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating')
-        # Subtract the user's mean rating to eliminate Popularity Bias (The "Your Name" bug)
-        pivot_matrix_centered = pivot_matrix.sub(pivot_matrix.mean(axis=0), axis=1).fillna(0)
-        # Calculate cosine similarity on the centered data
-        item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix_centered), index=pivot_matrix.index, columns=pivot_matrix.index)
-        # -----------------------------------------------------------------------------
-        
+        pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating').fillna(0)
+        item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix), index=pivot_matrix.index, columns=pivot_matrix.index)
     except Exception as e:
         st.error("⚠️ Failed to load Collaborative Filtering files.")
         item_sim_df = pd.DataFrame()
@@ -84,15 +77,18 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     if target_id not in sim_df.index:
         return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
     
-    # ----------------- Core Fix: Pandas Merge Optimization -----------------
-    # Extract similarity scores and exclude the target anime itself (index 0)
-    sim_scores = sim_df[target_id].sort_values(ascending=False).iloc[1:]
-    sim_scores_df = sim_scores.reset_index()
-    sim_scores_df.columns = ['animeID', 'cf_similarity']
+    sim_scores = sim_df[target_id]
+    similar_ids = sim_scores.sort_values(ascending=False).index[1:]
     
-    # Use native Pandas merge instead of slow for-loops for instant lookup (100x faster)
-    recs = pd.merge(sim_scores_df, df[['animeID', 'title', 'type', 'score', 'genres_detailed']], on='animeID')
-    # -----------------------------------------------------------------------
+    results = []
+    for aid in similar_ids:
+        match_anime = df[df['animeID'] == aid]
+        if not match_anime.empty:
+            row = match_anime.iloc[0].copy()
+            row['cf_similarity'] = sim_scores[aid]
+            results.append(row)
+            
+    recs = pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'cf_similarity']]
     
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -134,7 +130,7 @@ tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendat
 with tab_search:
     all_anime_titles = animes_df['title'].tolist()
     
-    # Search bar is empty by default
+    # Fix: Search bar is now empty by default (index=None)
     user_input = st.selectbox(
         "🔍 Search or select an anime to get started:", 
         options=all_anime_titles, 
@@ -154,7 +150,7 @@ with tab_search:
             else:
                 st.success("✅ Results generated successfully! (Low-rated items filtered out based on your settings)")
                 
-                # Show the Target Anime DNA (Explainability)
+                # Added: Show the Target Anime DNA (Explainability)
                 target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
                 raw_target_tags = str(target_anime['genres_detailed'])
                 try:
