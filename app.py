@@ -10,17 +10,40 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
 # ==========================================
-# 2. Core Data Loading & Caching
+# 2. Core Data Loading & Caching (Engine Upgraded)
 # ==========================================
+import scipy.sparse as sp
+from sklearn.preprocessing import MinMaxScaler
+
 @st.cache_data
 def load_and_compute_models():
+    # 1. 基础数据加载与一步到位的清洗 (绝不在 UI 层洗数据)
     animes_df = pd.read_csv("animes.csv")
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
-    animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(0)
+    animes_df['type'] = animes_df['type'].fillna('Unknown')
+    animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
     
+    # 预先将字符串标签转为列表，方便 UI 直接调用
+    def clean_tags(tag_str):
+        try:
+            tags = ast.literal_eval(tag_str)
+            return [t.title() for t in tags if t]
+        except:
+            return [t.title() for t in tag_str.replace("['", "").replace("']", "").split("', '") if t]
+    animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
+    
+    # 2. CBF 引擎升级：多模态特征融合 (Multimodal Feature Stacking)
     tfidf = TfidfVectorizer(stop_words='english')
     tfidf_matrix = tfidf.fit_transform(animes_df['genres_detailed'])
     
+    type_matrix = sp.csr_matrix(pd.get_dummies(animes_df['type']).values)
+    score_matrix = sp.csr_matrix(MinMaxScaler().fit_transform(animes_df[['score']]))
+    
+    # 赋予不同权重：剧情(1.0) + 格式(0.5) + 质量(0.5)
+    cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
+    
+    # 3. CF 引擎加载 (带状态标记)
+    cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_cf_ultra_final.csv")
         active_users = rating_df['userID'].value_counts()
@@ -34,18 +57,21 @@ def load_and_compute_models():
         top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
         top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
         
-        pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating').fillna(0)
-        item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix), index=pivot_matrix.index, columns=pivot_matrix.index)
+        # 引入我们在 Notebook 里修复的 Mean-Centering (均值中心化)
+        pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating')
+        user_mean = pivot_matrix.mean(axis=0)
+        pivot_matrix_centered = pivot_matrix.sub(user_mean, axis=1).fillna(0)
+        
+        item_sim_df = pd.DataFrame(cosine_similarity(pivot_matrix_centered), index=pivot_matrix.index, columns=pivot_matrix.index)
     except Exception as e:
-        st.error("⚠️ Failed to load Collaborative Filtering files.")
+        cf_status = f"ERROR: {str(e)}"
         item_sim_df = pd.DataFrame()
         top10_df = pd.DataFrame()
         
-    return animes_df, tfidf_matrix, item_sim_df, top10_df
+    return animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status
 
-with st.spinner("🤖 Loading AI Recommendation Engine. Initial startup may take a few seconds..."):
-    animes_df, tfidf_matrix, item_sim_df, top10_df = load_and_compute_models()
-
+with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
+    animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
 # ==========================================
 # 3. Define Recommendation Functions
 # ==========================================
@@ -141,27 +167,25 @@ with tab_search:
     if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
             if engine_choice == "CBF (Story DNA - Based on Plot & Genres)":
-                recs, error_msg = get_cbf_recommendations(user_input, animes_df, tfidf_matrix, top_k_choice, selected_types, min_score)
+                recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
             else:
-                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
+                if cf_status != "OK":
+                    recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
+                else:
+                    recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
                 
             if error_msg:
                 st.error(error_msg) 
             else:
                 st.success("✅ Results generated successfully! (Low-rated items filtered out based on your settings)")
                 
-                # Added: Show the Target Anime DNA (Explainability)
+                # 展示 Target Anime (直接读取洗好的 clean_tags_list)
                 target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
-                raw_target_tags = str(target_anime['genres_detailed'])
-                try:
-                    target_tags = ast.literal_eval(raw_target_tags)
-                except:
-                    target_tags = raw_target_tags.replace("['", "").replace("']", "").split("', '")
-                target_clean_tags = " • ".join([t.title() for t in target_tags if t])
-                
+                target_clean_tags = " • ".join(target_anime['clean_tags_list'])
                 st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **Story DNA:** {target_clean_tags}")
                 st.markdown("---") 
                 
+                # 遍历推荐结果
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
                 max_sim = float(recs[sim_col].max())
                 
@@ -174,37 +198,27 @@ with tab_search:
                             st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['score']:.2f}")
                             
                             with st.expander("🏷️ Core Tropes / Tags"):
-                                raw_tags = str(row['genres_detailed'])
-                                try:
-                                    tags = ast.literal_eval(raw_tags)
-                                except:
-                                    tags = raw_tags.replace("['", "").replace("']", "").split("', '")
-                                
-                                display_tags = tags if isinstance(tags, list) else []
+                                # 直接使用缓存清洗好的列表，瞬间完成渲染！
+                                display_tags = row['clean_tags_list']
                                 badges_html = "".join([
                                     f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 12px; '
                                     f'background-color: rgba(130, 130, 130, 0.15); border: 1px solid rgba(130, 130, 130, 0.3); '
-                                    f'border-radius: 16px; font-size: 13px; white-space: nowrap;">{tag.title()}</span>'
-                                    for tag in display_tags if tag
+                                    f'border-radius: 16px; font-size: 13px; white-space: nowrap;">{tag}</span>'
+                                    for tag in display_tags
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
                         with col_score:
+                            # 评分星星渲染逻辑保持不变...
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
                             
                             if match_pct >= 90:
-                                stars = "★★★★★"
-                                level_text = "Perfect Match"
-                                star_color = "#FFD700"  
+                                stars, level_text, star_color = "★★★★★", "Perfect Match", "#FFD700"  
                             elif match_pct >= 75:
-                                stars = "★★★★☆"
-                                level_text = "Highly Similar"
-                                star_color = "#F39C12"  
+                                stars, level_text, star_color = "★★★★☆", "Highly Similar", "#F39C12"  
                             else:
-                                stars = "★★★☆☆"
-                                level_text = "Style Correlated"
-                                star_color = "#AAB7B8"  
+                                stars, level_text, star_color = "★★★☆☆", "Style Correlated", "#AAB7B8"  
                                 
                             st.markdown(f"""
                                 <div style='text-align: right; padding-top: 12px;'>
@@ -212,8 +226,6 @@ with tab_search:
                                     <div style='font-size: 13px; color: #888; margin-top: 4px; font-weight: 500;'>{level_text}</div>
                                 </div>
                             """, unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Please select or type an anime name first!")
 
 # ---------------- Tab 2: Trending Leaderboard ----------------
 with tab_trending:
