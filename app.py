@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# 1. Global Page Configuration (Set to wide layout)
+# 1. Global Page Configuration
 # ==========================================
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
@@ -47,7 +47,7 @@ with st.spinner("🤖 Loading AI Recommendation Engine. Initial startup may take
     animes_df, tfidf_matrix, item_sim_df, top10_df = load_and_compute_models()
 
 # ==========================================
-# 3. Define Recommendation Functions (With secondary filtering logic)
+# 3. Define Recommendation Functions
 # ==========================================
 def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score):
     idx_list = df.index[df['title'].str.lower() == anime_title.lower()].tolist()
@@ -75,7 +75,7 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     target_id = match.iloc[0]['animeID']
     
     if target_id not in sim_df.index:
-        return None, f"🧊 [Severe Cold Start Intercept] This anime (ID:{target_id}) has too few real user ratings!\n\n🚨 **CF (Collaborative Filtering) Engine is down.** \n👉 **System Suggestion: Please go to the left control panel and switch to the [CBF (Content-Based)] engine as a fallback!**"
+        return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
     
     sim_scores = sim_df[target_id]
     similar_ids = sim_scores.sort_values(ascending=False).index[1:]
@@ -104,7 +104,15 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
 st.sidebar.header("⚙️ Engine Control Panel")
 
-engine_choice = st.sidebar.radio("1. Core Algorithm Selection:", ["CF (Collaborative Filtering - Crowd Wisdom)", "CBF (Content-Based - Tag Analysis)"])
+# Viewer-Friendly Engine Names
+engine_choice = st.sidebar.radio(
+    "1. Core Algorithm Selection:", 
+    [
+        "CF (Community Favorites - Based on User Tastes)", 
+        "CBF (Story DNA - Based on Plot & Genres)"
+    ],
+    help="CF finds what people with similar tastes love. CBF finds anime with the exact same plot tags."
+)
 top_k_choice = st.sidebar.slider("2. Number of Recommendations:", min_value=5, max_value=20, value=10, step=1)
 
 st.sidebar.divider()
@@ -114,30 +122,25 @@ selected_types = st.sidebar.multiselect("Include Specific Types (Leave blank for
 min_score = st.sidebar.slider("Minimum Community Rating:", min_value=0.0, max_value=10.0, value=6.0, step=0.5)
 
 st.title("🎬 Anime Dual-Engine Recommendation System")
-st.markdown("Discover your next masterpiece! This platform is powered by dual AI algorithms: **CBF (Text Deep Learning)** and **CF (Million-level Crowd Wisdom)**.")
+st.markdown("Discover your next masterpiece! Powered by dual AI algorithms analyzing both **Story DNA** and **Community Wisdom**.")
 
-tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendations", "🏆 All-Time Top 10 Trending", "📊 Algorithm Performance (Benchmarks)"])
+tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendations", "🏆 All-Time Top 10 Trending", "📊 Algorithm Benchmarks"])
 
 # ---------------- Tab 1: Search & Recommend ----------------
 with tab_search:
-    col_search, col_demo = st.columns([3, 1])
-    with col_search:
-        # Extract all anime names from the database into a list
-        all_anime_titles = animes_df['title'].tolist()
-        # Use selectbox instead of text_input for a Google-level auto-complete search experience!
-        user_input = st.selectbox(
-            "🔍 Search or select an anime:", 
-            options=all_anime_titles, 
-            index=all_anime_titles.index("Death Note") if "Death Note" in all_anime_titles else 0
-        )
-    with col_demo:
-        st.markdown("<br>", unsafe_allow_html=True) 
-        if st.button("🚨 Demo: Simulate Cold-Start Anime"):
-            st.warning('Target loaded: Please search for `s-CRY-ed` in the search box, select the **CF Engine**, and generate to see the system interception!')
+    all_anime_titles = animes_df['title'].tolist()
+    
+    # Fix: Search bar is now empty by default (index=None)
+    user_input = st.selectbox(
+        "🔍 Search or select an anime to get started:", 
+        options=all_anime_titles, 
+        index=None,
+        placeholder="Type or click to choose an anime..."
+    )
             
     if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
-            if engine_choice == "CBF (Content-Based - Tag Analysis)":
+            if engine_choice == "CBF (Story DNA - Based on Plot & Genres)":
                 recs, error_msg = get_cbf_recommendations(user_input, animes_df, tfidf_matrix, top_k_choice, selected_types, min_score)
             else:
                 recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
@@ -145,11 +148,10 @@ with tab_search:
             if error_msg:
                 st.error(error_msg) 
             else:
-                st.success("✅ Results generated successfully! (Low-rated items filtered out based on industry standards)")
-                # ------------------- 新增：展示目标动漫的档案卡 -------------------
-                target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
+                st.success("✅ Results generated successfully! (Low-rated items filtered out based on your settings)")
                 
-                # 清洗目标动漫的标签
+                # Added: Show the Target Anime DNA (Explainability)
+                target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
                 raw_target_tags = str(target_anime['genres_detailed'])
                 try:
                     target_tags = ast.literal_eval(raw_target_tags)
@@ -157,9 +159,7 @@ with tab_search:
                     target_tags = raw_target_tags.replace("['", "").replace("']", "").split("', '")
                 target_clean_tags = " • ".join([t.title() for t in target_tags if t])
                 
-                # 用一个信息框展示它
-                st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **DNA Tags:** {target_clean_tags}")
-                # ----------------------------------------------------------------
+                st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **Story DNA:** {target_clean_tags}")
                 st.markdown("---") 
                 
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
@@ -190,25 +190,22 @@ with tab_search:
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
                         with col_score:
-                            # Option 3: Pure Star Rating System (Most intuitive, zero cognitive load)
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
                             
-                            # Star rating and clean text assessment
                             if match_pct >= 90:
                                 stars = "★★★★★"
                                 level_text = "Perfect Match"
-                                star_color = "#FFD700"  # Dazzling Gold
+                                star_color = "#FFD700"  
                             elif match_pct >= 75:
                                 stars = "★★★★☆"
                                 level_text = "Highly Similar"
-                                star_color = "#F39C12"  # Vibrant Orange-Gold
+                                star_color = "#F39C12"  
                             else:
                                 stars = "★★★☆☆"
                                 level_text = "Style Correlated"
-                                star_color = "#AAB7B8"  # Textured Silver-Gray
+                                star_color = "#AAB7B8"  
                                 
-                            # Use HTML to render a clean star layout (Stars on top, subtitle below)
                             st.markdown(f"""
                                 <div style='text-align: right; padding-top: 12px;'>
                                     <div style='font-size: 20px; color: {star_color}; letter-spacing: 2px;'>{stars}</div>
@@ -216,7 +213,7 @@ with tab_search:
                                 </div>
                             """, unsafe_allow_html=True)
         else:
-            st.info("Please select or enter an anime name!")
+            st.warning("⚠️ Please select or type an anime name first!")
 
 # ---------------- Tab 2: Trending Leaderboard ----------------
 with tab_trending:
@@ -226,7 +223,6 @@ with tab_trending:
     if not top10_df.empty:
         for rank, (index, row) in enumerate(top10_df.iterrows()):
             with st.container(border=True):
-                # Fix: Use pure HTML instead of ### headers to completely eliminate the link anchor icon
                 st.markdown(f"<div style='font-size: 18px; font-weight: bold; margin-bottom: 8px;'>👑 No.{rank + 1} &nbsp; {row['title']}</div>", unsafe_allow_html=True)
                 st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['score']}")
     else:
