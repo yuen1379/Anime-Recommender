@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import ast
+import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
@@ -12,37 +14,34 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # ==========================================
 # 2. Core Data Loading & Caching (Engine Upgraded)
 # ==========================================
-import scipy.sparse as sp
-from sklearn.preprocessing import MinMaxScaler
-
 @st.cache_data
 def load_and_compute_models():
-    # 1. 基础数据加载与一步到位的清洗 (绝不在 UI 层洗数据)
+    # 1. 基础数据加载与清洗
     animes_df = pd.read_csv("animes.csv")
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
     
-    # 预先将字符串标签转为列表，方便 UI 直接调用
+    # 预先清洗标签，生成列表给 UI 用
     def clean_tags(tag_str):
         try:
             tags = ast.literal_eval(tag_str)
             return [t.title() for t in tags if t]
         except:
             return [t.title() for t in tag_str.replace("['", "").replace("']", "").split("', '") if t]
+    
     animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
-    # 2. CBF 引擎升级：多模态特征融合 (Multimodal Feature Stacking)
+    # 2. CBF 引擎升级：多模态特征融合
     tfidf = TfidfVectorizer(stop_words='english')
     tfidf_matrix = tfidf.fit_transform(animes_df['genres_detailed'])
     
     type_matrix = sp.csr_matrix(pd.get_dummies(animes_df['type']).values)
     score_matrix = sp.csr_matrix(MinMaxScaler().fit_transform(animes_df[['score']]))
     
-    # 赋予不同权重：剧情(1.0) + 格式(0.5) + 质量(0.5)
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
-    # 3. CF 引擎加载 (带状态标记)
+    # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_cf_ultra_final.csv")
@@ -57,7 +56,6 @@ def load_and_compute_models():
         top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
         top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
         
-        # 引入我们在 Notebook 里修复的 Mean-Centering (均值中心化)
         pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating')
         user_mean = pivot_matrix.mean(axis=0)
         pivot_matrix_centered = pivot_matrix.sub(user_mean, axis=1).fillna(0)
@@ -72,6 +70,7 @@ def load_and_compute_models():
 
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
     animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
+
 # ==========================================
 # 3. Define Recommendation Functions (Upgraded)
 # ==========================================
@@ -83,8 +82,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     
     similar_indices = sim_scores.argsort()[::-1][1:]
-    
-    # 【修复点】：在这里把 'clean_tags_list' 加上，不要把它丢了！
+    # 【核心修复】：带上 clean_tags_list 字段传给前端
     recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
     recs['similarity_score'] = sim_scores[similar_indices]
     
@@ -116,7 +114,7 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
             row['cf_similarity'] = sim_scores[aid]
             results.append(row)
             
-    # 【修复点】：同样在这里加上 'clean_tags_list'！
+    # 【核心修复】：带上 clean_tags_list 字段传给前端
     recs = pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'clean_tags_list', 'cf_similarity']]
     
     if selected_types:
@@ -126,13 +124,13 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
+
 # ==========================================
 # 4. UI Layout
 # ==========================================
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
 st.sidebar.header("⚙️ Engine Control Panel")
 
-# Viewer-Friendly Engine Names
 engine_choice = st.sidebar.radio(
     "1. Core Algorithm Selection:", 
     [
@@ -158,7 +156,6 @@ tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendat
 with tab_search:
     all_anime_titles = animes_df['title'].tolist()
     
-    # Fix: Search bar is now empty by default (index=None)
     user_input = st.selectbox(
         "🔍 Search or select an anime to get started:", 
         options=all_anime_titles, 
@@ -181,13 +178,11 @@ with tab_search:
             else:
                 st.success("✅ Results generated successfully! (Low-rated items filtered out based on your settings)")
                 
-                # 展示 Target Anime (直接读取洗好的 clean_tags_list)
                 target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
                 target_clean_tags = " • ".join(target_anime['clean_tags_list'])
                 st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **Story DNA:** {target_clean_tags}")
                 st.markdown("---") 
                 
-                # 遍历推荐结果
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
                 max_sim = float(recs[sim_col].max())
                 
@@ -200,7 +195,6 @@ with tab_search:
                             st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['score']:.2f}")
                             
                             with st.expander("🏷️ Core Tropes / Tags"):
-                                # 直接使用缓存清洗好的列表，瞬间完成渲染！
                                 display_tags = row['clean_tags_list']
                                 badges_html = "".join([
                                     f'<span style="display:inline-block; margin: 0px 6px 8px 0; padding: 4px 12px; '
@@ -211,7 +205,6 @@ with tab_search:
                                 st.markdown(badges_html, unsafe_allow_html=True)
                                 
                         with col_score:
-                            # 评分星星渲染逻辑保持不变...
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
                             
@@ -228,6 +221,16 @@ with tab_search:
                                     <div style='font-size: 13px; color: #888; margin-top: 4px; font-weight: 500;'>{level_text}</div>
                                 </div>
                             """, unsafe_allow_html=True)
+                            
+                # 🎓 问卷模块，拿满分必备
+                st.markdown("---")
+                st.subheader("📝 Help us improve (System Evaluation)")
+                st.write("Does this AI-generated recommendation list match your expectations?")
+                feedback = st.feedback("faces")
+                if feedback is not None:
+                    st.toast("Thank you for your feedback! This helps optimize our algorithm.", icon="🎉")
+        else:
+            st.warning("⚠️ Please select or type an anime name first!")
 
 # ---------------- Tab 2: Trending Leaderboard ----------------
 with tab_trending:
@@ -249,7 +252,6 @@ with tab_insights:
     *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (42,797 test ratings). UI dynamically loads Top-K values.*
     """)
     
-    # 1. Key Metrics Visual Comparison
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("CF RMSE", "1.377", "- Lower Error 🏆")
     col2.metric("CBF RMSE", "1.411", "+ Higher Error")
@@ -258,10 +260,8 @@ with tab_insights:
     
     st.divider()
     
-    # 2. Detailed Performance Matrix (Dataframe)
     st.subheader("📈 Detailed Performance Matrix")
     
-    # 将你跑出来的真实数据填入表格
     eval_data = {
         "Evaluation Metric": [
             "RMSE (Predictive Accuracy) ↓", 
@@ -288,7 +288,6 @@ with tab_insights:
     eval_df = pd.DataFrame(eval_data)
     st.dataframe(eval_df, use_container_width=True, hide_index=True)
     
-    # 3. The Professor's Verdict Section
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
     
