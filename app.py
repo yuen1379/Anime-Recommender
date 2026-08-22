@@ -73,7 +73,7 @@ def load_and_compute_models():
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
     animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
 # ==========================================
-# 3. Define Recommendation Functions
+# 3. Define Recommendation Functions (Upgraded)
 # ==========================================
 def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score):
     idx_list = df.index[df['title'].str.lower() == anime_title.lower()].tolist()
@@ -83,7 +83,9 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
     
     similar_indices = sim_scores.argsort()[::-1][1:]
-    recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed']].copy()
+    
+    # 【修复点】：在这里把 'clean_tags_list' 加上，不要把它丢了！
+    recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
     recs['similarity_score'] = sim_scores[similar_indices]
     
     if selected_types:
@@ -114,7 +116,8 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
             row['cf_similarity'] = sim_scores[aid]
             results.append(row)
             
-    recs = pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'cf_similarity']]
+    # 【修复点】：同样在这里加上 'clean_tags_list'！
+    recs = pd.DataFrame(results)[['title', 'type', 'score', 'genres_detailed', 'clean_tags_list', 'cf_similarity']]
     
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -123,7 +126,6 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
-
 # ==========================================
 # 4. UI Layout
 # ==========================================
