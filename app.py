@@ -230,15 +230,56 @@ with tab_trending:
 
 # ---------------- Tab 3: Data Insights Panel ----------------
 with tab_insights:
-    st.subheader("📊 Underlying Algorithm Benchmarks")
-    st.markdown("Offline evaluation report under experimental environment (Test results on 42,797 sets of Data):")
+    st.subheader("📊 Model Evaluation (Offline Benchmark)")
+    st.markdown("""
+    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (42,797 test ratings). UI dynamically loads Top-K values.*
+    """)
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("CF RMSE (Collaborative Error)", "1.377", "- More Accurate")
-    col2.metric("CBF RMSE (Content Error)", "1.411", "+ Broader Coverage")
-    col3.metric("CF Hit Rate (Precision@10)", "16.8%", "+ Better than CBF's 15.4%")
+    # 1. Key Metrics Visual Comparison
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("CF RMSE", "1.377", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.411", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "12.0%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "11.1%", "- Lower Relevance")
     
     st.divider()
-    st.subheader("📈 Current Anime Type Distribution (EDA)")
-    type_counts = animes_df['type'].value_counts()
-    st.bar_chart(type_counts, color="#ff4b4b")
+    
+    # 2. Detailed Performance Matrix (Dataframe)
+    st.subheader("📈 Detailed Performance Matrix")
+    
+    # 将你跑出来的真实数据填入表格
+    eval_data = {
+        "Evaluation Metric": [
+            "RMSE (Predictive Accuracy) ↓", 
+            "Accuracy (Threshold >= 7) ↑",
+            "Precision@10 (Top-10 Hit Rate) ↑", 
+            "Recall@10 (Coverage Ability) ↑",
+            "F1-Score@10 (Balance Score) ↑"
+        ],
+        "CF (Community Favorites)": [
+            "1.377 (Winner 🏆)", 
+            "83.5% (Winner 🏆)", 
+            "12.0% (Winner 🏆)", 
+            "3.64%",
+            "0.056 (Winner 🏆)"
+        ],
+        "CBF (Story DNA)": [
+            "1.411", 
+            "81.2%",
+            "11.1%", 
+            "3.67% (Winner 🏆)",
+            "0.055"
+        ]
+    }
+    eval_df = pd.DataFrame(eval_data)
+    st.dataframe(eval_df, use_container_width=True, hide_index=True)
+    
+    # 3. The Professor's Verdict Section
+    st.info("""
+    **🎓 Final Verdict: Which model is more outstanding?**
+    
+    * **Collaborative Filtering (CF)** is mathematically superior in **Accuracy (83.5%)** and **Precision (12.0%)** because it leverages actual human behavior and crowd wisdom. It excels at predicting what users truly want.
+    * **Content-Based Filtering (CBF)** narrowly wins in **Recall** and fundamentally solves the **'Cold-Start Problem'**. It requires zero historical user data, making it essential for brand new anime, and breaks the 'Filter Bubble' by recommending a wider range of genres.
+    
+    **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine (Hybrid) System**—using CF for highly-rated popular titles, and seamlessly falling back to CBF when facing cold-start data.
+    """)
