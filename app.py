@@ -166,12 +166,15 @@ with tab_search:
     if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
             if engine_choice == "CBF (Story DNA - Based on Plot & Genres)":
-                recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
+            recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
+        else:
+            if cf_status != "OK":
+                recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
             else:
-                if cf_status != "OK":
-                    recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
-                else:
-                    recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
+                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
+                if error_msg and "Cold Start Intercept" in error_msg:
+                    st.warning("🧊 触发冷启动保护：该动漫暂无足够社区评分。系统已【无缝自动切换】至 CBF (Story DNA) 引擎为您推荐！", icon="🤖")
+                    recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
                 
             if error_msg:
                 st.error(error_msg) 
