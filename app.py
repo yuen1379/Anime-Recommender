@@ -131,97 +131,14 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
 st.sidebar.header("⚙️ Engine Control Panel")
 
-# ---------------- Tab 1: Search & Recommend ----------------
-with tab_search:
-    all_anime_titles = animes_df['title'].tolist()
-    
-    user_input = st.selectbox(
-        "🔍 Search or select an anime to get started:", 
-        options=all_anime_titles, 
-        index=None,
-        placeholder="Type or click to choose an anime..."
-    )
-            
-    if st.button("🚀 Generate AI Recommendations", type="primary"):
-        if user_input:
-            # 🚀 【核心逻辑：系统默认只用老师要求的 CF 模型】
-            if cf_status != "OK":
-                st.error(f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files.")
-            else:
-                # 尝试用 CF 跑推荐
-                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
-                
-                # 🚀 【神来之笔：全自动无缝回退机制】
-                # 如果 CF 发现这是个冷启动的新番（或者没数据），系统自动拦截，并在后台偷偷换成 CBF！
-                if error_msg and "Cold Start Intercept" in error_msg:
-                    st.warning("🧊 Cold Start Detected: This anime lacks sufficient community ratings. The system has seamlessly auto-switched to the **CBF (Story DNA) Engine** for you!", icon="🤖")
-                    # 自动调用 CBF 补救
-                    recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
-                else:
-                    # 如果 CF 跑成功了，悄悄告诉用户这是高精度的 CF 推荐
-                    st.success("🎯 High-Precision Mode: Recommendations generated via Collaborative Community Behaviors.", icon="✨")
-
-            # 后续的展示逻辑完全不变 (渲染星级和标签...)
-            if error_msg and not recs: # 只有当 CBF 也救不回来（比如过滤条件太严）才报错
-                st.error(error_msg) 
-            elif recs is not None:
-                # 展示 Target Anime ... (保持你原有的后续渲染代码不变)
-                target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
-                target_clean_tags = " • ".join(target_anime['clean_tags_list'])
-                st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **Story DNA:** {target_clean_tags}")
-                st.markdown("---") 
-                
-                sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
-                max_sim = float(recs[sim_col].max())
-                
-                for rank_idx, (index, row) in enumerate(recs.iterrows()):
-                    with st.container(border=True):
-                        # ...（保持你 app_3.py 里原有的卡片渲染代码）...# ---------------- Tab 1: Search & Recommend ----------------
-with tab_search:
-    all_anime_titles = animes_df['title'].tolist()
-    
-    user_input = st.selectbox(
-        "🔍 Search or select an anime to get started:", 
-        options=all_anime_titles, 
-        index=None,
-        placeholder="Type or click to choose an anime..."
-    )
-            
-    if st.button("🚀 Generate AI Recommendations", type="primary"):
-        if user_input:
-            # 🚀 【核心逻辑：系统默认只用老师要求的 CF 模型】
-            if cf_status != "OK":
-                st.error(f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files.")
-            else:
-                # 尝试用 CF 跑推荐
-                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
-                
-                # 🚀 【神来之笔：全自动无缝回退机制】
-                # 如果 CF 发现这是个冷启动的新番（或者没数据），系统自动拦截，并在后台偷偷换成 CBF！
-                if error_msg and "Cold Start Intercept" in error_msg:
-                    st.warning("🧊 Cold Start Detected: This anime lacks sufficient community ratings. The system has seamlessly auto-switched to the **CBF (Story DNA) Engine** for you!", icon="🤖")
-                    # 自动调用 CBF 补救
-                    recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
-                else:
-                    # 如果 CF 跑成功了，悄悄告诉用户这是高精度的 CF 推荐
-                    st.success("🎯 High-Precision Mode: Recommendations generated via Collaborative Community Behaviors.", icon="✨")
-
-            # 后续的展示逻辑完全不变 (渲染星级和标签...)
-            if error_msg and not recs: # 只有当 CBF 也救不回来（比如过滤条件太严）才报错
-                st.error(error_msg) 
-            elif recs is not None:
-                # 展示 Target Anime ... (保持你原有的后续渲染代码不变)
-                target_anime = animes_df[animes_df['title'] == user_input].iloc[0]
-                target_clean_tags = " • ".join(target_anime['clean_tags_list'])
-                st.info(f"🎯 **Target Selected:** **{target_anime['title']}** (Type: {target_anime['type']} | Score: ⭐ {target_anime['score']:.2f})\n\n🏷️ **Story DNA:** {target_clean_tags}")
-                st.markdown("---") 
-                
-                sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
-                max_sim = float(recs[sim_col].max())
-                
-                for rank_idx, (index, row) in enumerate(recs.iterrows()):
-                    with st.container(border=True):
-                        # ...（保持你 app_3.py 里原有的卡片渲染代码）...
+engine_choice = st.sidebar.radio(
+    "1. Core Algorithm Selection:", 
+    [
+        "CF (Community Favorites - Based on User Tastes)", 
+        "CBF (Story DNA - Based on Plot & Genres)"
+    ],
+    help="CF finds what people with similar tastes love. CBF finds anime with the exact same plot tags."
+)
 top_k_choice = st.sidebar.slider("2. Number of Recommendations:", min_value=5, max_value=20, value=10, step=1)
 
 st.sidebar.divider()
@@ -249,15 +166,12 @@ with tab_search:
     if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
             if engine_choice == "CBF (Story DNA - Based on Plot & Genres)":
-            recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
-        else:
-            if cf_status != "OK":
-                recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
+                recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
             else:
-                recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
-                if error_msg and "Cold Start Intercept" in error_msg:
-                    st.warning("🧊 触发冷启动保护：该动漫暂无足够社区评分。系统已【无缝自动切换】至 CBF (Story DNA) 引擎为您推荐！", icon="🤖")
-                    recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
+                if cf_status != "OK":
+                    recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
+                else:
+                    recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
                 
             if error_msg:
                 st.error(error_msg) 
