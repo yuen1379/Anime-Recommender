@@ -11,6 +11,19 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==========================================
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
+def normalize_tags(raw_tags):
+    try:
+        tags = ast.literal_eval(raw_tags)
+    except (ValueError, SyntaxError):
+        tags = []
+    # Join each multi-word/hyphenated tag into a single token
+    normalized = [tag.replace(' ', '_').replace('-', '_') for tag in tags]
+    return ' '.join(normalized)
+
+animes_df['genres_processed'] = animes_df['genres_detailed'].apply(normalize_tags)
+tfidf = TfidfVectorizer()  # no need for stop_words='english' anymore — these aren't sentences
+tfidf_matrix = tfidf.fit_transform(animes_df['genres_processed'])
+
 # ==========================================
 # 2. Core Data Loading & Caching (Engine Upgraded)
 # ==========================================
