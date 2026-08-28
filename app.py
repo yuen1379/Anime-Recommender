@@ -60,7 +60,7 @@ def load_and_compute_models():
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
     # 3. CF 引擎加载 (带均值中心化)
-    # 3. CF 引擎加载 (带均值中心化)
+
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_safe.zip")
@@ -74,7 +74,8 @@ def load_and_compute_models():
         active_animes = active_animes[active_animes >= 50].index
         filtered_ratings = filtered_ratings[filtered_ratings['animeID'].isin(active_animes)]
         
-        top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
+        valid_ratings = filtered_ratings[filtered_ratings['animeID'].isin(animes_df['animeID'])]
+        top_anime_ids = valid_ratings['animeID'].value_counts().head(10).index
         top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
         
         pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating')
