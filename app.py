@@ -215,7 +215,7 @@ with tab_search:
 
                         # 💡 NEW: View on MyAnimeList Button
                                 st.write("") # Adds slight spacing
-                                st.link_button("🌐 View on MAL", f"https://myanimelist.net/anime/{row['animeID']}", use_container_width=True)
+                                st.link_button("🌐 Search on MAL", f"https://myanimelist.net/anime.php?q={row['title']}", use_container_width=True)
                                 
                         with col_score:
                             raw_score = float(row[sim_col])
