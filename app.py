@@ -190,12 +190,17 @@ with tab_search:
                             raw_score = float(row[sim_col])
                             match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
 
+
+                            
+                            rank_position = rank_idx  # 假设 rank_idx 是 0-indexed 的排名
+                            total = len(recs)
                             if match_pct >= 90:
-                                stars, level_text, star_color = "★★★★★", "Perfect Match", "#FFD700"
-                            elif match_pct >= 75:
-                                stars, level_text, star_color = "★★★★☆", "Highly Similar", "#F39C12"
-                            else:
-                                stars, level_text, star_color = "★★★☆☆", "Style Correlated", "#AAB7B8"
+                                if rank_position < total * 0.2:
+                                    stars, level_text = "★★★★★", "Perfect Match"
+                                elif rank_position < total * 0.5:
+                                    stars, level_text = "★★★★☆", "Highly Similar"
+                                else:
+                                    stars, level_text = "★★★☆☆", "Style Correlated"
 
                             st.markdown(f"""
                                 <div style='text-align: right; padding-top: 12px;'>
