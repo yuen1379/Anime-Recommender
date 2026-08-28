@@ -35,7 +35,7 @@ def load_and_compute_models():
     # 3. CF 引擎
     cf_status = "OK"
     try:
-        rating_df = pd.read_csv("rating_safe.csv")                # ← 文件名改这里
+        rating_df = pd.read_csv("rating_safe.zip")                # ← 文件名改这里
         active_users = rating_df['user_id'].value_counts()        # ← userID -> user_id
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['user_id'].isin(active_users)]
