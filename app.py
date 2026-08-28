@@ -15,11 +15,11 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # 2. Core Data Loading & Caching (Engine Upgraded)
 # ==========================================
 @st.cache_data
-def load_and_compute_models():
+def load_and_compute_models_v2():
     # 1. 基础数据加载
     animes_df = pd.read_csv("anime_safe.csv")
     
-    # 【新增】：自动把不规范的列名统一改成标准名字，彻底杜绝 KeyError
+    # 自动把不规范的列名统一改成标准名字
     rename_map = {}
     if 'anime_id' in animes_df.columns and 'animeID' not in animes_df.columns:
         rename_map['anime_id'] = 'animeID'
@@ -32,11 +32,11 @@ def load_and_compute_models():
         
     animes_df = animes_df.rename(columns=rename_map)
     
-    # 2. 正常填补空值（此时必定存在 'genres_detailed' 和 'score' 列）
+    # 2. 正常填补空值
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
-    # 预先清洗标签，生成列表给 UI 用
+    
     def clean_tags(tag_str):
         try:
             tags = ast.literal_eval(tag_str)
@@ -46,7 +46,7 @@ def load_and_compute_models():
     
     animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
-# 2. CBF 引擎升级：多模态特征融合 (逗号分词升级版)
+    # 2. CBF 引擎升级
     tfidf = TfidfVectorizer(
         tokenizer=lambda x: [tag.strip().lower() for tag in str(x).split(',')],
         token_pattern=None, 
@@ -60,11 +60,14 @@ def load_and_compute_models():
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
     # 3. CF 引擎加载 (带均值中心化)
-    # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_safe.zip")
         rating_df = rating_df.rename(columns={'user_id': 'userID', 'anime_id': 'animeID'})
+        
+        # 🛡️ 铁壁防御：读取后的第一秒，立刻删掉所有在 anime_safe 里找不到的幽灵打分！(绝不能漏掉)
+        valid_anime_ids = set(animes_df['animeID'].unique())
+        rating_df = rating_df[rating_df['animeID'].isin(valid_anime_ids)]
         
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
@@ -90,8 +93,7 @@ def load_and_compute_models():
     return animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status
 
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
-    animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
-
+    animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models_v2()
 # ==========================================
 # 3. Define Recommendation Functions (Upgraded)
 # ==========================================
