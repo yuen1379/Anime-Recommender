@@ -186,28 +186,7 @@ with tab_search:
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
 
-                        with col_score:
-                            raw_score = float(row[sim_col])
-                            match_pct = int((raw_score / max_sim) * 99) if max_sim > 0 else 0
-
-
-                            
-                            rank_position = rank_idx  # 假设 rank_idx 是 0-indexed 的排名
-                            total = len(recs)
-                            if match_pct >= 90:
-                                if rank_position < total * 0.2:
-                                    stars, level_text = "★★★★★", "Perfect Match"
-                                elif rank_position < total * 0.5:
-                                    stars, level_text = "★★★★☆", "Highly Similar"
-                                else:
-                                    stars, level_text = "★★★☆☆", "Style Correlated"
-
-                            st.markdown(f"""
-                                <div style='text-align: right; padding-top: 12px;'>
-                                    <div style='font-size: 20px; color: {star_color}; letter-spacing: 2px;'>{stars}</div>
-                                    <div style='font-size: 13px; color: #888; margin-top: 4px; font-weight: 500;'>{level_text}</div>
-                                </div>
-                            """, unsafe_allow_html=True)
+                         with col_score:
 
                 st.markdown("---")
                 st.subheader("📝 Help us improve (System Evaluation)")
