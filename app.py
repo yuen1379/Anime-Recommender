@@ -17,7 +17,7 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 @st.cache_data
 def load_and_compute_models():
     # 1. 基础数据加载与清洗
-    animes_df = pd.read_csv("anime_safe.csv")
+    animes_df = pd.read_csv("animes.csv")
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
