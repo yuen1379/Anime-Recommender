@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import ast
-import os
 import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import MinMaxScaler
@@ -17,24 +16,13 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # ==========================================
 @st.cache_data
 def load_and_compute_models():
-    # 1. 基础数据加载与自动列名适配
-    if os.path.exists("anime_safe.csv"):
-        animes_df = pd.read_csv("anime_safe.csv")
-    else:
-        animes_df = pd.read_csv("animes.csv")
-        
-    rename_map = {
-        'anime_id': 'animeID',
-        'name': 'title',
-        'genre': 'genres_detailed',
-        'rating': 'score'
-    }
-    animes_df = animes_df.rename(columns=rename_map)
-    
+    # 1. 基础数据加载与清洗
+    animes_df = pd.read_csv("anime_safe.csv")
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
     
+    # 预先清洗标签，生成列表给 UI 用
     def clean_tags(tag_str):
         try:
             tags = ast.literal_eval(tag_str)
@@ -44,12 +32,8 @@ def load_and_compute_models():
     
     animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
-    # 2. CBF 引擎升级：高级逗号分词版
-    tfidf = TfidfVectorizer(
-        tokenizer=lambda x: [tag.strip().lower() for tag in str(x).split(',')],
-        token_pattern=None, 
-        lowercase=False 
-    )
+    # 2. CBF 引擎升级：多模态特征融合
+    tfidf = TfidfVectorizer(stop_words='english')
     tfidf_matrix = tfidf.fit_transform(animes_df['genres_detailed'])
     
     type_matrix = sp.csr_matrix(pd.get_dummies(animes_df['type']).values)
@@ -57,27 +41,10 @@ def load_and_compute_models():
     
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
-    # 3. CF 引擎加载 (带幽灵数据铁壁防御)
+    # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
-        if os.path.exists("rating_safe.zip"):
-            rating_df = pd.read_csv("rating_safe.zip")
-        elif os.path.exists("rating_safe.csv"):
-            rating_df = pd.read_csv("rating_safe.csv")
-        else:
-            rating_df = pd.read_csv("rating_cf_ultra_final.csv")
-            
-        rating_df = rating_df.rename(columns={
-            'user_id': 'userID', 
-            'user_ID': 'userID', 
-            'anime_id': 'animeID', 
-            'anime_ID': 'animeID'
-        })
-        
-        # 🛡️ 核心铁壁防御：立刻切掉所有在安全名单里找不到的孤儿/幽灵打分
-        valid_anime_ids = set(animes_df['animeID'].unique())
-        rating_df = rating_df[rating_df['animeID'].isin(valid_anime_ids)]
-        
+        rating_df = pd.read_csv("rating_safe.zip")
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['userID'].isin(active_users)]
@@ -103,6 +70,7 @@ def load_and_compute_models():
 
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
     animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
+
 # ==========================================
 # 3. Define Recommendation Functions (Upgraded)
 # ==========================================
@@ -115,7 +83,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     
     similar_indices = sim_scores.argsort()[::-1][1:]
     # 【核心修复】：带上 clean_tags_list 字段传给前端
-    recs = df.iloc[similar_indices][['animeID', 'title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
+    recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
     recs['similarity_score'] = sim_scores[similar_indices]
     
     if selected_types:
@@ -125,15 +93,6 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
-
-st.image("https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&h=300&fit=crop", width='stretch')
-st.title("🎬 Anime Dual-Engine Recommendation System")
-st.markdown("Discover your next masterpiece! Powered by dual AI algorithms analyzing both **Story DNA** and **Community Wisdom**.")
-
-import random
-if st.button("🎲 Don't know what to watch? Surprise Me!"):
-    random_pool = ["Death Note", "Attack on Titan", "Steins;Gate", "One Punch Man", "Spirited Away", "Cyberpunk: Edgerunners"] 
-    st.toast(f"Try searching for: {random.choice(random_pool)}", icon="💡")
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
     match = df[df['title'].str.lower() == anime_title.lower()]
@@ -244,10 +203,6 @@ with tab_search:
                                     for tag in display_tags
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
-
-                        # 💡 NEW: View on MyAnimeList Button
-                                st.write("") # Adds slight spacing
-                                st.link_button("🌐 Search on MAL", f"https://myanimelist.net/anime.php?q={row['title']}", use_container_width='stretch')
                                 
                         with col_score:
                             raw_score = float(row[sim_col])
@@ -294,14 +249,14 @@ with tab_trending:
 with tab_insights:
     st.subheader("📊 Model Evaluation (Offline Benchmark)")
     st.markdown("""
-    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting. UI dynamically loads Top-K values.*
+    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (42,797 test ratings). UI dynamically loads Top-K values.*
     """)
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CF RMSE", "1.106", "- Lower Error 🏆")
-    col2.metric("CBF RMSE", "1.283", "+ Higher Error")
-    col3.metric("CF Hit Rate (P@10)", "16.5%", "+ Better Relevance 🏆")
-    col4.metric("CBF Hit Rate (P@10)", "8.9%", "- Lower Relevance")
+    col1.metric("CF RMSE", "1.259", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.426", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "13.4%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "10.3%", "- Lower Relevance")
     
     st.divider()
     
@@ -316,22 +271,22 @@ with tab_insights:
             "F1-Score@10 (Balance Score) ↑"
         ],
         "CF (Community Favorites)": [
-            "1.106 (Winner 🏆)", 
-            "85.2% (Winner 🏆)", 
-            "16.5% (Winner 🏆)", 
-            "4.6% (Winner 🏆)",
-            "0.072 (Winner 🏆)"
+            "1.259 (Winner 🏆)", 
+            "83.4% (Winner 🏆)", 
+            "13.4% (Winner 🏆)", 
+            "4.3% (Winner 🏆)",
+            "0.065 (Winner 🏆)"
         ],
         "CBF (Story DNA)": [
-            "1.283", 
-            "82.8%",
-            "8.9%", 
-            "2.3%",
-            "0.036"
+            "1.426", 
+            "81.6%",
+            "10.3%", 
+            "3.1%",
+            "0.047"
         ]
     }
     eval_df = pd.DataFrame(eval_data)
-    st.dataframe(eval_df, width='stretch', hide_index=True)
+    st.dataframe(eval_df, use_container_width=True, hide_index=True)
     
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
