@@ -101,7 +101,7 @@ def load_and_compute_models():
     return animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status
 
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
-    animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models_v2()
+    animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
 # ==========================================
 # 3. Define Recommendation Functions (Upgraded)
 # ==========================================
