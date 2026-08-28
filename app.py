@@ -15,24 +15,21 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # 2. Core Data Loading & Caching (Engine Upgraded)
 # ==========================================
 @st.cache_data
-def load_and_compute_models_v2():
-    # 1. 基础数据加载
-    animes_df = pd.read_csv("anime_safe.csv")
-    
-    # 自动把不规范的列名统一改成标准名字
-    rename_map = {}
-    if 'anime_id' in animes_df.columns and 'animeID' not in animes_df.columns:
-        rename_map['anime_id'] = 'animeID'
-    if 'name' in animes_df.columns and 'title' not in animes_df.columns:
-        rename_map['name'] = 'title'
-    if 'genre' in animes_df.columns and 'genres_detailed' not in animes_df.columns:
-        rename_map['genre'] = 'genres_detailed'
-    if 'rating' in animes_df.columns and 'score' not in animes_df.columns:
-        rename_map['rating'] = 'score'
+def load_and_compute_models():
+    # 1. 基础数据加载与自动列名适配
+    if os.path.exists("anime_safe.csv"):
+        animes_df = pd.read_csv("anime_safe.csv")
+    else:
+        animes_df = pd.read_csv("animes.csv")
         
+    rename_map = {
+        'anime_id': 'animeID',
+        'name': 'title',
+        'genre': 'genres_detailed',
+        'rating': 'score'
+    }
     animes_df = animes_df.rename(columns=rename_map)
     
-    # 2. 正常填补空值
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
@@ -46,7 +43,7 @@ def load_and_compute_models_v2():
     
     animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
-    # 2. CBF 引擎升级
+    # 2. CBF 引擎升级：高级逗号分词版
     tfidf = TfidfVectorizer(
         tokenizer=lambda x: [tag.strip().lower() for tag in str(x).split(',')],
         token_pattern=None, 
@@ -59,13 +56,24 @@ def load_and_compute_models_v2():
     
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
-    # 3. CF 引擎加载 (带均值中心化)
+    # 3. CF 引擎加载 (带幽灵数据铁壁防御)
     cf_status = "OK"
     try:
-        rating_df = pd.read_csv("rating_safe.zip")
-        rating_df = rating_df.rename(columns={'user_id': 'userID', 'anime_id': 'animeID'})
+        if os.path.exists("rating_safe.zip"):
+            rating_df = pd.read_csv("rating_safe.zip")
+        elif os.path.exists("rating_safe.csv"):
+            rating_df = pd.read_csv("rating_safe.csv")
+        else:
+            rating_df = pd.read_csv("rating_cf_ultra_final.csv")
+            
+        rating_df = rating_df.rename(columns={
+            'user_id': 'userID', 
+            'user_ID': 'userID', 
+            'anime_id': 'animeID', 
+            'anime_ID': 'animeID'
+        })
         
-        # 🛡️ 铁壁防御：读取后的第一秒，立刻删掉所有在 anime_safe 里找不到的幽灵打分！(绝不能漏掉)
+        # 🛡️ 核心铁壁防御：立刻切掉所有在安全名单里找不到的孤儿/幽灵打分
         valid_anime_ids = set(animes_df['animeID'].unique())
         rating_df = rating_df[rating_df['animeID'].isin(valid_anime_ids)]
         
@@ -285,7 +293,7 @@ with tab_trending:
 with tab_insights:
     st.subheader("📊 Model Evaluation (Offline Benchmark)")
     st.markdown("""
-    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (42,797 test ratings). UI dynamically loads Top-K values.*
+    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting. UI dynamically loads Top-K values.*
     """)
     
     col1, col2, col3, col4 = st.columns(4)
