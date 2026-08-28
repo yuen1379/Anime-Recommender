@@ -44,7 +44,7 @@ def load_and_compute_models():
     # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
-        rating_df = pd.read_csv("rating_cf_ultra_final.csv")
+        rating_df = pd.read_csv("rating_safe.zip")
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['userID'].isin(active_users)]
