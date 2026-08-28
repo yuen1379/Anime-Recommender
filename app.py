@@ -46,8 +46,12 @@ def load_and_compute_models():
     
     animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
-    # 2. CBF 引擎升级：多模态特征融合
-    tfidf = TfidfVectorizer(stop_words='english')
+# 2. CBF 引擎升级：多模态特征融合 (逗号分词升级版)
+    tfidf = TfidfVectorizer(
+        tokenizer=lambda x: [tag.strip().lower() for tag in str(x).split(',')],
+        token_pattern=None, 
+        lowercase=False 
+    )
     tfidf_matrix = tfidf.fit_transform(animes_df['genres_detailed'])
     
     type_matrix = sp.csr_matrix(pd.get_dummies(animes_df['type']).values)
