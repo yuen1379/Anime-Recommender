@@ -16,12 +16,26 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # ==========================================
 @st.cache_data
 def load_and_compute_models():
-    # 1. 基础数据加载与清洗
+    # 1. 基础数据加载
     animes_df = pd.read_csv("anime_safe.csv")
+    
+    # 【新增】：自动把不规范的列名统一改成标准名字，彻底杜绝 KeyError
+    rename_map = {}
+    if 'anime_id' in animes_df.columns and 'animeID' not in animes_df.columns:
+        rename_map['anime_id'] = 'animeID'
+    if 'name' in animes_df.columns and 'title' not in animes_df.columns:
+        rename_map['name'] = 'title'
+    if 'genre' in animes_df.columns and 'genres_detailed' not in animes_df.columns:
+        rename_map['genre'] = 'genres_detailed'
+    if 'rating' in animes_df.columns and 'score' not in animes_df.columns:
+        rename_map['rating'] = 'score'
+        
+    animes_df = animes_df.rename(columns=rename_map)
+    
+    # 2. 正常填补空值（此时必定存在 'genres_detailed' 和 'score' 列）
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
-    
     # 预先清洗标签，生成列表给 UI 用
     def clean_tags(tag_str):
         try:
