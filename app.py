@@ -60,16 +60,11 @@ def load_and_compute_models():
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
     # 3. CF 引擎加载 (带均值中心化)
-
     # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_safe.zip")
         rating_df = rating_df.rename(columns={'user_id': 'userID', 'anime_id': 'animeID'})
-        
-        # 🛡️ 终极防御 1：在一切开始前，强制砍掉所有不在 anime_safe.csv 里的幽灵打分！
-        valid_anime_ids = set(animes_df['animeID'].unique())
-        rating_df = rating_df[rating_df['animeID'].isin(valid_anime_ids)]
         
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
@@ -80,8 +75,6 @@ def load_and_compute_models():
         filtered_ratings = filtered_ratings[filtered_ratings['animeID'].isin(active_animes)]
         
         top_anime_ids = filtered_ratings['animeID'].value_counts().head(10).index
-        
-        # 🛡️ 终极防御 2：提取 Top 10 确保安全无痛
         top10_df = animes_df.set_index('animeID').loc[top_anime_ids].reset_index()
         
         pivot_matrix = filtered_ratings.pivot_table(index='animeID', columns='userID', values='rating')
