@@ -41,9 +41,20 @@ def load_and_compute_models():
         else:
             animes_df['genres_detailed'] = '' # 即使整张表都没有这一列，也不会崩
             
+    animes_df = pd.read_csv("anime_safe.csv")
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
+    
+    # 🏷️ 【补回这一段】：生成前端 UI 必需的 clean_tags_list
+    def clean_tags(tag_str):
+        try:
+            tags = ast.literal_eval(tag_str)
+            return [t.title() for t in tags if t]
+        except:
+            return [t.title() for t in tag_str.replace("['", "").replace("']", "").split("', '") if t]
+    
+    animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
     # 2. CBF 引擎升级：多模态特征融合
     tfidf = TfidfVectorizer(stop_words='english')
@@ -58,6 +69,7 @@ def load_and_compute_models():
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_safe.zip")
+        rating_df = rating_df.rename(columns={'user_id': 'userID', 'anime_id': 'animeID'})
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['userID'].isin(active_users)]
