@@ -4,6 +4,7 @@ import scipy.sparse as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
+from urllib.parse import quote
 
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
@@ -174,7 +175,18 @@ with tab_search:
                         with col_info:
                             st.subheader(f"🏅 {row['name']}")
                             st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['rating']:.2f}")
+                            
+                            search_query = quote(f"{row['name']} anime")
+                            mal_url = f"https://myanimelist.net/anime.php?q={search_query}"
+                            google_url = f"https://www.google.com/search?q={search_query}"
+                            
+                            link_col1, link_col2 = st.columns(2)
+                            with link_col1:
+                                st.link_button("🔍 MyAnimeList", mal_url, width="stretch")
+                            with link_col2:
+                                st.link_button("🌐 Google", google_url, width="stretch")
 
+                            
                             with st.expander("🏷️ Core Tropes / Tags"):
                                 display_tags = row['clean_tags_list']
                                 badges_html = "".join([
