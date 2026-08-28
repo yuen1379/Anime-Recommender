@@ -16,21 +16,33 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 # ==========================================
 @st.cache_data
 def load_and_compute_models():
-    # 1. 基础数据加载与清洗
-    animes_df = pd.read_csv("anime_safe.csv")
+    # 1. 基础数据加载与万能列名自适应
+    if os.path.exists("anime_safe.csv"):
+        animes_df = pd.read_csv("anime_safe.csv")
+    else:
+        animes_df = pd.read_csv("animes.csv")
+        
+    # 统一重命名标准列
+    rename_map = {
+        'anime_id': 'animeID',
+        'name': 'title',
+        'genre': 'genres_detailed',
+        'genres': 'genres_detailed',
+        'rating': 'score'
+    }
+    animes_df = animes_df.rename(columns=rename_map)
+    
+    # 🛡️ 额外保险：如果依然没有 genres_detailed，自动全局检索并强制更名
+    if 'genres_detailed' not in animes_df.columns:
+        fallback_col = next((col for col in ['genre', 'genres', 'tags', 'tag'] if col in animes_df.columns), None)
+        if fallback_col:
+            animes_df = animes_df.rename(columns={fallback_col: 'genres_detailed'})
+        else:
+            animes_df['genres_detailed'] = '' # 即使整张表都没有这一列，也不会崩
+            
     animes_df['genres_detailed'] = animes_df['genres_detailed'].fillna('')
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['score'] = pd.to_numeric(animes_df['score'], errors='coerce').fillna(6.0)
-    
-    # 预先清洗标签，生成列表给 UI 用
-    def clean_tags(tag_str):
-        try:
-            tags = ast.literal_eval(tag_str)
-            return [t.title() for t in tags if t]
-        except:
-            return [t.title() for t in tag_str.replace("['", "").replace("']", "").split("', '") if t]
-    
-    animes_df['clean_tags_list'] = animes_df['genres_detailed'].apply(clean_tags)
     
     # 2. CBF 引擎升级：多模态特征融合
     tfidf = TfidfVectorizer(stop_words='english')
