@@ -166,15 +166,14 @@ with tab_search:
                 st.markdown("---")
 
                 sim_col = 'similarity_score' if 'similarity_score' in recs.columns else 'cf_similarity'
-                max_sim = float(recs[sim_col].max())
 
                 for rank_idx, (index, row) in enumerate(recs.iterrows()):
                     with st.container(border=True):
                         col_info, col_score = st.columns([3, 1])
 
                         with col_info:
-                            st.subheader(f"🏅 {row['name']}")                    # ← title -> name
-                            st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['rating']:.2f}")  # ← score -> rating
+                            st.subheader(f"🏅 {row['name']}")
+                            st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['rating']:.2f}")
 
                             with st.expander("🏷️ Core Tropes / Tags"):
                                 display_tags = row['clean_tags_list']
@@ -186,7 +185,23 @@ with tab_search:
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
 
-                         with col_score:
+                        with col_score:
+                            rank_position = rank_idx  # 0-indexed 排名
+                            total = len(recs)
+
+                            if rank_position < total * 0.2:
+                                stars, level_text, star_color = "★★★★★", "Perfect Match", "#FFD700"
+                            elif rank_position < total * 0.5:
+                                stars, level_text, star_color = "★★★★☆", "Highly Similar", "#F39C12"
+                            else:
+                                stars, level_text, star_color = "★★★☆☆", "Style Correlated", "#AAB7B8"
+
+                            st.markdown(f"""
+                                <div style='text-align: right; padding-top: 12px;'>
+                                    <div style='font-size: 20px; color: {star_color}; letter-spacing: 2px;'>{stars}</div>
+                                    <div style='font-size: 13px; color: #888; margin-top: 4px; font-weight: 500;'>{level_text}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
 
                 st.markdown("---")
                 st.subheader("📝 Help us improve (System Evaluation)")
