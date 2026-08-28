@@ -125,7 +125,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
 
-st.image("https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&h=300&fit=crop", use_container_width=True)
+st.image("https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&h=300&fit=crop", width='stretch')
 st.title("🎬 Anime Dual-Engine Recommendation System")
 st.markdown("Discover your next masterpiece! Powered by dual AI algorithms analyzing both **Story DNA** and **Community Wisdom**.")
 
@@ -246,7 +246,7 @@ with tab_search:
 
                         # 💡 NEW: View on MyAnimeList Button
                                 st.write("") # Adds slight spacing
-                                st.link_button("🌐 Search on MAL", f"https://myanimelist.net/anime.php?q={row['title']}", use_container_width=True)
+                                st.link_button("🌐 Search on MAL", f"https://myanimelist.net/anime.php?q={row['title']}", use_container_width='stretch')
                                 
                         with col_score:
                             raw_score = float(row[sim_col])
@@ -330,7 +330,7 @@ with tab_insights:
         ]
     }
     eval_df = pd.DataFrame(eval_data)
-    st.dataframe(eval_df, use_container_width=True, hide_index=True)
+    st.dataframe(eval_df, width='stretch', hide_index=True)
     
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
