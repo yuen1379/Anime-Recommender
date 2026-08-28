@@ -60,9 +60,12 @@ def load_and_compute_models():
     cbf_feature_matrix = sp.hstack([tfidf_matrix * 1.0, type_matrix * 0.5, score_matrix * 0.5])
     
     # 3. CF 引擎加载 (带均值中心化)
+    # 3. CF 引擎加载 (带均值中心化)
     cf_status = "OK"
     try:
         rating_df = pd.read_csv("rating_safe.zip")
+        rating_df = rating_df.rename(columns={'user_id': 'userID', 'anime_id': 'animeID'})
+        
         active_users = rating_df['userID'].value_counts()
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['userID'].isin(active_users)]
@@ -284,10 +287,10 @@ with tab_insights:
     """)
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CF RMSE", "1.259", "- Lower Error 🏆")
-    col2.metric("CBF RMSE", "1.426", "+ Higher Error")
-    col3.metric("CF Hit Rate (P@10)", "13.4%", "+ Better Relevance 🏆")
-    col4.metric("CBF Hit Rate (P@10)", "10.3%", "- Lower Relevance")
+    col1.metric("CF RMSE", "1.106", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.283", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "16.5%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "8.9%", "- Lower Relevance")
     
     st.divider()
     
@@ -302,18 +305,18 @@ with tab_insights:
             "F1-Score@10 (Balance Score) ↑"
         ],
         "CF (Community Favorites)": [
-            "1.259 (Winner 🏆)", 
-            "83.4% (Winner 🏆)", 
-            "13.4% (Winner 🏆)", 
-            "4.3% (Winner 🏆)",
-            "0.065 (Winner 🏆)"
+            "1.106 (Winner 🏆)", 
+            "85.2% (Winner 🏆)", 
+            "16.5% (Winner 🏆)", 
+            "4.6% (Winner 🏆)",
+            "0.072 (Winner 🏆)"
         ],
         "CBF (Story DNA)": [
-            "1.426", 
-            "81.6%",
-            "10.3%", 
-            "3.1%",
-            "0.047"
+            "1.283", 
+            "82.8%",
+            "8.9%", 
+            "2.3%",
+            "0.036"
         ]
     }
     eval_df = pd.DataFrame(eval_data)
