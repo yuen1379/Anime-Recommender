@@ -83,7 +83,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     
     similar_indices = sim_scores.argsort()[::-1][1:]
     # 【核心修复】：带上 clean_tags_list 字段传给前端
-    recs = df.iloc[similar_indices][['title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
+    recs = df.iloc[similar_indices][['animeID', 'title', 'type', 'score', 'genres_detailed', 'clean_tags_list']].copy()
     recs['similarity_score'] = sim_scores[similar_indices]
     
     if selected_types:
@@ -93,6 +93,15 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
+
+st.image("https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&h=300&fit=crop", use_container_width=True)
+st.title("🎬 Anime Dual-Engine Recommendation System")
+st.markdown("Discover your next masterpiece! Powered by dual AI algorithms analyzing both **Story DNA** and **Community Wisdom**.")
+
+import random
+if st.button("🎲 Don't know what to watch? Surprise Me!"):
+    random_pool = ["Death Note", "Attack on Titan", "Steins;Gate", "One Punch Man", "Spirited Away", "Cyberpunk: Edgerunners"] 
+    st.toast(f"Try searching for: {random.choice(random_pool)}", icon="💡")
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
     match = df[df['title'].str.lower() == anime_title.lower()]
@@ -203,6 +212,10 @@ with tab_search:
                                     for tag in display_tags
                                 ])
                                 st.markdown(badges_html, unsafe_allow_html=True)
+
+                        # 💡 NEW: View on MyAnimeList Button
+                                st.write("") # Adds slight spacing
+                                st.link_button("🌐 View on MAL", f"https://myanimelist.net/anime/{row['animeID']}", use_container_width=True)
                                 
                         with col_score:
                             raw_score = float(row[sim_col])
