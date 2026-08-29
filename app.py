@@ -64,7 +64,7 @@ def load_and_compute_models():
 with st.spinner("🤖 Loading Upgraded AI Engine (Multimodal Stacking & Mean-Centering)..."):
     animes_df, cbf_feature_matrix, item_sim_df, top10_df, cf_status = load_and_compute_models()
 
-def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score):
+def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_types, min_score, max_episodes=0):
     idx_list = df.index[df['name'].str.lower() == anime_title.lower()].tolist()  # ← title -> name
     if not idx_list:
         return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
@@ -127,7 +127,7 @@ def genre_overlap_percentage(target_genre_str, rec_genre_str):
     overlap = target_set & rec_set
     return round(len(overlap) / len(target_set) * 100)
 
-def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
+def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score, max_episodes=0):
     match = df[df['name'].str.lower() == anime_title.lower()]
     if match.empty:
         return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
