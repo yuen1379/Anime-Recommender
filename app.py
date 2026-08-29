@@ -77,8 +77,10 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
 
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
-    recs = recs[recs['rating'] >= min_score]                                    # ← score -> rating
-
+    recs = recs[recs['rating'] >= min_score]
+    if max_episodes > 0:
+        recs = recs[(recs['episodes'] <= max_episodes) | (recs['episodes'].isna())]
+        
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
@@ -150,6 +152,8 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
     recs = recs[recs['rating'] >= min_score]
+    if max_episodes > 0:
+        recs = recs[(recs['episodes'] <= max_episodes) | (recs['episodes'].isna())]
 
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
@@ -179,6 +183,10 @@ all_types = [t for t in animes_df['type'].unique() if pd.notna(t) and t != '']
 selected_types = st.sidebar.multiselect("Include Specific Types (Leave blank for all):", all_types, default=[])
 min_score = st.sidebar.slider("Minimum Community Rating:", min_value=0.0, max_value=10.0, value=6.0, step=0.5)
 
+max_episodes = st.sidebar.slider("Max Episodes (0 = no limit):", min_value=0, max_value=500, value=0, step=10)
+st.sidebar.caption("💡 Leave 'Include Specific Types' blank to include all types, or select specific ones to narrow down.")
+st.sidebar.caption("🔍 Filters apply *after* generating recommendations — narrowing too much may return fewer results.")
+
 st.title("🎬 Anime Dual-Engine Recommendation System")
 st.markdown("Discover your next masterpiece! Powered by dual AI algorithms analyzing both **Story DNA** and **Community Wisdom**.")
 
@@ -201,12 +209,12 @@ with tab_search:
     if st.button("🚀 Generate AI Recommendations", type="primary"):
         if user_input:
             if engine_choice == "CBF (Story DNA - Based on Plot & Genres)":
-                recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score)
+                recs, error_msg = get_cbf_recommendations(user_input, animes_df, cbf_feature_matrix, top_k_choice, selected_types, min_score, max_episodes)
             else:
                 if cf_status != "OK":
                     recs, error_msg = None, f"🚨 System Error: CF Engine failed to load ({cf_status}). Please check data files."
                 else:
-                    recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score)
+                    recs, error_msg = get_cf_recommendations(user_input, animes_df, item_sim_df, top_k_choice, selected_types, min_score, max_episodes)
 
             if error_msg:
                 st.error(error_msg)
