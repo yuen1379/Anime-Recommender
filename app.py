@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from urllib.parse import quote
 
+
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
 @st.cache_data
@@ -71,7 +72,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
 
     similar_indices = sim_scores.argsort()[::-1][1:]
-    recs = df.iloc[similar_indices][['name', 'type', 'rating', 'genre', 'episodes', 'clean_tags_list']].copy()  # ← 列名统一改
+    recs = df.iloc[similar_indices][['name', 'type', 'rating', 'genre', 'episodes', 'members', 'clean_tags_list']].copy()
     recs['similarity_score'] = sim_scores[similar_indices]
 
     if selected_types:
@@ -83,6 +84,31 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     return recs.head(top_k), None
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
+
+    DARK_GENRE_FLAGS = ["Horror", "Psychological", "Gore", "Thriller"]
+
+def get_content_note(genre_str):
+    """功能 3：内容提醒"""
+    if not genre_str:
+        return None
+    flags = [g for g in DARK_GENRE_FLAGS if g.lower() in genre_str.lower()]
+    if flags:
+        return f"⚠️ Contains {', '.join(flags)} themes — heads up if that's not your thing."
+    return None
+
+def humanize_members(members):
+    """功能 4：人性化观看人数展示"""
+    try:
+        m = float(members)
+    except (TypeError, ValueError):
+        return None
+    if m >= 1_000_000:
+        return f"❤️ Loved by {m/1_000_000:.1f}M+ fans"
+    elif m >= 1000:
+        return f"❤️ Loved by {int(m/1000)}K+ fans"
+    else:
+        return f"❤️ Loved by {int(m)} fans"
+        
     match = df[df['name'].str.lower() == anime_title.lower()]                  # ← title -> name
     if match.empty:
         return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
@@ -103,7 +129,7 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
             results.append(row)
 
     # get_cf_recommendations 里
-    recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'clean_tags_list', 'cf_similarity']]
+recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'members', 'clean_tags_list', 'cf_similarity']]
 
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -116,6 +142,11 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3171/3171927.png", width=100)
 st.sidebar.header("⚙️ Engine Control Panel")
 
+if 'surprise_pick' not in st.session_state:
+    st.session_state.surprise_pick = None
+
+if st.sidebar.button("🎲 Surprise Me!", width="stretch"):
+    st.session_state.surprise_pick = animes_df.sample(1)['name'].values[0]
 engine_choice = st.sidebar.radio(
     "1. Core Algorithm Selection:",
     [
@@ -139,6 +170,10 @@ tab_search, tab_trending, tab_insights = st.tabs(["🎯 Exclusive AI Recommendat
 
 with tab_search:
     all_anime_titles = animes_df['name'].tolist()                              # ← title -> name
+
+    default_index = None
+    if st.session_state.surprise_pick and st.session_state.surprise_pick in all_anime_titles:
+        default_index = all_anime_titles.index(st.session_state.surprise_pick)
 
     user_input = st.selectbox(
         "🔍 Search or select an anime to get started:",
@@ -190,6 +225,16 @@ with tab_search:
                                 episodes_text = "Episode count unknown"
                             st.caption(f"📺 {episodes_text}")
 
+                            content_note = get_content_note(row.get('genre', ''))
+                            if content_note:
+                                st.caption(content_note)
+                                
+                            fan_text = humanize_members(row.get('members'))
+                            if fan_text:
+                                st.caption(fan_text)
+
+                            crunchyroll_url = f"https://www.crunchyroll.com/search?q={quote(row['name'])}"
+                            st.link_button("📺 Search on Crunchyroll", crunchyroll_url, width="stretch")
                             
                             search_query = quote(f"{row['name']} anime")
                             mal_url = f"https://myanimelist.net/anime.php?q={search_query}"
