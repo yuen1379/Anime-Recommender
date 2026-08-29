@@ -107,6 +107,13 @@ def humanize_members(members):
     else:
         return f"❤️ Loved by {int(m)} fans"
 
+def get_rating_percentile(rating_value, all_ratings):
+    """功能：计算这部番的评分击败了库里百分之多少的番剧"""
+    if pd.isna(rating_value):
+        return None
+    percentile = (all_ratings < rating_value).mean() * 100
+    return round(percentile)
+
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
     match = df[df['name'].str.lower() == anime_title.lower()]
     if match.empty:
@@ -210,6 +217,10 @@ with tab_search:
                             st.subheader(f"🏅 {row['name']}")
                             st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['rating']:.2f}")
 
+                            percentile = get_rating_percentile(row['rating'], animes_df['rating'])
+                            if percentile is not None:
+                                st.caption(f"📊 Rated higher than {percentile}% of anime in our database")
+                            
                             if sim_col == 'similarity_score':
                                 reason = f"Because it shares similar genres and format with **{target_anime['name']}**"
                             else:
