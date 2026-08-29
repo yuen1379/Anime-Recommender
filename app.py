@@ -83,8 +83,6 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
     return recs.head(top_k), None
 
-def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
-
 DARK_GENRE_FLAGS = ["Horror", "Psychological", "Gore", "Thriller"]
 
 def get_content_note(genre_str):
@@ -178,7 +176,7 @@ with tab_search:
     user_input = st.selectbox(
         "🔍 Search or select an anime to get started:",
         options=all_anime_titles,
-        index=None,
+        index=default_index,
         placeholder="Type or click to choose an anime..."
     )
 
