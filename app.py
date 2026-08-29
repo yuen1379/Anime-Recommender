@@ -114,6 +114,17 @@ def get_rating_percentile(rating_value, all_ratings):
     percentile = (all_ratings < rating_value).mean() * 100
     return round(percentile)
 
+def genre_overlap_percentage(target_genre_str, rec_genre_str):
+    """功能：计算目标番和推荐番之间genre标签的重合比例"""
+    if not target_genre_str or not rec_genre_str:
+        return 0
+    target_set = set(g.strip().lower() for g in target_genre_str.split(',') if g.strip())
+    rec_set = set(g.strip().lower() for g in rec_genre_str.split(',') if g.strip())
+    if not target_set:
+        return 0
+    overlap = target_set & rec_set
+    return round(len(overlap) / len(target_set) * 100)
+
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
     match = df[df['name'].str.lower() == anime_title.lower()]
     if match.empty:
@@ -242,6 +253,10 @@ with tab_search:
                             if fan_text:
                                 st.caption(fan_text)
 
+                            overlap_pct = genre_overlap_percentage(target_anime['genre'], row.get('genre', ''))
+                            st.caption(f"🧬 Genre Overlap: {overlap_pct}%")
+                            st.progress(overlap_pct / 100)
+                            
                             crunchyroll_url = f"https://www.crunchyroll.com/search?q={quote(row['name'])}"
                             st.link_button("📺 Search on Crunchyroll", crunchyroll_url, width="stretch")
                             
