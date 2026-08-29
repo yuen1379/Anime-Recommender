@@ -85,7 +85,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
 
-    DARK_GENRE_FLAGS = ["Horror", "Psychological", "Gore", "Thriller"]
+DARK_GENRE_FLAGS = ["Horror", "Psychological", "Gore", "Thriller"]
 
 def get_content_note(genre_str):
     """功能 3：内容提醒"""
@@ -108,11 +108,12 @@ def humanize_members(members):
         return f"❤️ Loved by {int(m/1000)}K+ fans"
     else:
         return f"❤️ Loved by {int(m)} fans"
-        
-    match = df[df['name'].str.lower() == anime_title.lower()]                  # ← title -> name
+
+def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
+    match = df[df['name'].str.lower() == anime_title.lower()]
     if match.empty:
         return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
-    target_id = match.iloc[0]['anime_id']                                      # ← animeID -> anime_id
+    target_id = match.iloc[0]['anime_id']
 
     if target_id not in sim_df.index:
         return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
@@ -122,18 +123,17 @@ def humanize_members(members):
 
     results = []
     for aid in similar_ids:
-        match_anime = df[df['anime_id'] == aid]                                # ← animeID -> anime_id
+        match_anime = df[df['anime_id'] == aid]
         if not match_anime.empty:
             row = match_anime.iloc[0].copy()
             row['cf_similarity'] = sim_scores[aid]
             results.append(row)
 
-    # get_cf_recommendations 里
-recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'members', 'clean_tags_list', 'cf_similarity']]
+    recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'members', 'clean_tags_list', 'cf_similarity']]
 
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
-    recs = recs[recs['rating'] >= min_score]                                    # ← score -> rating
+    recs = recs[recs['rating'] >= min_score]
 
     if recs.empty:
         return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
