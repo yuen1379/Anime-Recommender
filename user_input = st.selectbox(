@@ -110,34 +110,6 @@ def humanize_members(members):
         return f"❤️ Loved by {int(m)} fans"
 
 def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_score):
-    match = df[df['name'].str.lower() == anime_title.lower()]
-    if match.empty:
-        return None, f"❌ Cannot find an anime named '{anime_title}'. Please check your spelling."
-    target_id = match.iloc[0]['anime_id']
-
-    if target_id not in sim_df.index:
-        return None, f"🧊 [Cold Start Intercept] This anime doesn't have enough community ratings yet!\n\n🚨 **CF Engine cannot process this.** \n👉 **Suggestion: Switch to the [CBF (Story DNA)] engine on the left panel to analyze it by plot instead!**"
-
-    sim_scores = sim_df[target_id]
-    similar_ids = sim_scores.sort_values(ascending=False).index[1:]
-
-    results = []
-    for aid in similar_ids:
-        match_anime = df[df['anime_id'] == aid]
-        if not match_anime.empty:
-            row = match_anime.iloc[0].copy()
-            row['cf_similarity'] = sim_scores[aid]
-            results.append(row)
-
-    recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'members', 'clean_tags_list', 'cf_similarity']]
-
-    if selected_types:
-        recs = recs[recs['type'].isin(selected_types)]
-    recs = recs[recs['rating'] >= min_score]
-
-    if recs.empty:
-        return None, "⚠️ No recommendations match your filters. Please relax the 'Type' or 'Minimum Rating' limits on the left."
-    return recs.head(top_k), None
     
     match = df[df['name'].str.lower() == anime_title.lower()]                  # ← title -> name
     if match.empty:
