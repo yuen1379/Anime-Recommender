@@ -71,7 +71,7 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
     sim_scores = cosine_similarity(feature_matrix[idx], feature_matrix).flatten()
 
     similar_indices = sim_scores.argsort()[::-1][1:]
-    recs = df.iloc[similar_indices][['name', 'type', 'rating', 'genre', 'clean_tags_list']].copy()  # ← 列名统一改
+    recs = df.iloc[similar_indices][['name', 'type', 'rating', 'genre', 'episodes', 'clean_tags_list']].copy()  # ← 列名统一改
     recs['similarity_score'] = sim_scores[similar_indices]
 
     if selected_types:
@@ -102,7 +102,8 @@ def get_cf_recommendations(anime_title, df, sim_df, top_k, selected_types, min_s
             row['cf_similarity'] = sim_scores[aid]
             results.append(row)
 
-    recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'clean_tags_list', 'cf_similarity']]  # ← 列名统一改
+    # get_cf_recommendations 里
+    recs = pd.DataFrame(results)[['name', 'type', 'rating', 'genre', 'episodes', 'clean_tags_list', 'cf_similarity']]
 
     if selected_types:
         recs = recs[recs['type'].isin(selected_types)]
@@ -175,6 +176,20 @@ with tab_search:
                         with col_info:
                             st.subheader(f"🏅 {row['name']}")
                             st.caption(f"**Type**: {row['type']}  |  **Community Rating**: ⭐ {row['rating']:.2f}")
+
+                            if sim_col == 'similarity_score':
+                                reason = f"Because it shares similar genres and format with **{target_anime['name']}**"
+                            else:
+                                reason = f"Because fans of **{target_anime['name']}** also tend to enjoy this one"
+                            st.caption(f"💡 {reason}")
+
+                            episodes_val = row.get('episodes')
+                            if pd.notna(episodes_val) and str(episodes_val).replace('.', '', 1).isdigit() and float(episodes_val) > 0:
+                                episodes_text = f"{int(float(episodes_val))} episodes"
+                            else:
+                                episodes_text = "Episode count unknown"
+                            st.caption(f"📺 {episodes_text}")
+
                             
                             search_query = quote(f"{row['name']} anime")
                             mal_url = f"https://myanimelist.net/anime.php?q={search_query}"
