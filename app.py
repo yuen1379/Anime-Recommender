@@ -14,6 +14,8 @@ div[data-testid="stDecoration"] { display: none !important; }
 footer { visibility: hidden; }
 </style>
 """
+st.markdown(hide_ui_style, unsafe_allow_html=True)
+
 hide_manage_style = """
 <style>
 footer { visibility: hidden !important; }
@@ -22,7 +24,6 @@ footer { visibility: hidden !important; }
 """
 st.markdown(hide_manage_style, unsafe_allow_html=True)
 
-st.markdown(hide_ui_style, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
