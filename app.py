@@ -16,19 +16,6 @@ footer { visibility: hidden; }
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
 
-hide_ui_style = """
-<style>
-.viewerBadge_container, 
-div.viewerBadge_container__1QSob, 
-[data-testid="stToolbar"], 
-footer {
-    display: none !important;
-    visibility: hidden !important;
-}
-</style>
-"""
-st.markdown(hide_ui_style, unsafe_allow_html=True)
-
 
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
 
