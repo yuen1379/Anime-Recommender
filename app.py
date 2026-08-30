@@ -16,13 +16,18 @@ footer { visibility: hidden; }
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
 
-hide_manage_style = """
+hide_ui_style = """
 <style>
-footer { visibility: hidden !important; }
-.viewerBadge_container__1QSob { display: none !important; }
+.viewerBadge_container, 
+div.viewerBadge_container__1QSob, 
+[data-testid="stToolbar"], 
+footer {
+    display: none !important;
+    visibility: hidden !important;
+}
 </style>
 """
-st.markdown(hide_manage_style, unsafe_allow_html=True)
+st.markdown(hide_ui_style, unsafe_allow_html=True)
 
 
 st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_icon="🎬", layout="wide")
