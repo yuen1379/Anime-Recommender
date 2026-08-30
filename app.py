@@ -331,14 +331,14 @@ with tab_trending:
 with tab_insights:
     st.subheader("📊 Model Evaluation (Offline Benchmark)")
     st.markdown("""
-    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (42,797 test ratings). UI dynamically loads Top-K values.*
+    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (**296,466 test ratings**). UI dynamically loads Top-K values.*
     """)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CF RMSE", "1.259", "- Lower Error 🏆")
-    col2.metric("CBF RMSE", "1.426", "+ Higher Error")
-    col3.metric("CF Hit Rate (P@10)", "13.4%", "+ Better Relevance 🏆")
-    col4.metric("CBF Hit Rate (P@10)", "10.3%", "- Lower Relevance")
+    col1.metric("CF RMSE", "1.116", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.311", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "14.1%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "7.3%", "- Lower Relevance")
 
     st.divider()
 
@@ -353,28 +353,37 @@ with tab_insights:
             "F1-Score@10 (Balance Score) ↑"
         ],
         "CF (Community Favorites)": [
-            "1.259 (Winner 🏆)",
-            "83.4% (Winner 🏆)",
-            "13.4% (Winner 🏆)",
-            "4.3% (Winner 🏆)",
-            "0.065 (Winner 🏆)"
+            "1.116 (Winner 🏆)",
+            "85.5% (Winner 🏆)",
+            "14.1% (Winner 🏆)",
+            "4.5% (Winner 🏆)",
+            "0.068 (Winner 🏆)"
         ],
         "CBF (Story DNA)": [
-            "1.426",
-            "81.6%",
-            "10.3%",
-            "3.1%",
-            "0.047"
+            "1.311",
+            "83.5%",
+            "7.3%",
+            "2.1%",
+            "0.032"
+        ],
+        "Popularity Baseline": [
+            "N/A",
+            "N/A",
+            "2.5%",
+            "0.8%",
+            "0.012"
         ]
     }
     eval_df = pd.DataFrame(eval_data)
+    # 将 Baseline 排在中间作为参考线，看起来更专业
+    eval_df = eval_df[['Evaluation Metric', 'Popularity Baseline', 'CBF (Story DNA)', 'CF (Community Favorites)']]
     st.dataframe(eval_df, use_container_width=True, hide_index=True)
 
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
 
-    * **Collaborative Filtering (CF)** swept all numerical metrics across the board (Accuracy, Precision, Recall, F1) because it effectively leverages actual human behavior and mitigates rating bias via Pearson Correlation. It excels at predicting what users truly want.
+    * **Collaborative Filtering (CF)** swept all numerical metrics across the board (Accuracy, Precision, Recall, F1) because it effectively leverages actual human behavior and mitigates rating bias via Mean-Centering. It excels at predicting what users truly want, beating the generic Popularity Baseline by ~5.6x.
     * **Content-Based Filtering (CBF)** may score lower in raw offline metrics, but it fundamentally solves the **'Cold-Start Problem'**. It requires zero historical user data, making it computationally essential for newly released anime, and provides vital system stability when CF fails.
 
-    **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine (Hybrid) System**—using CF for highly-rated popular titles to maximize accuracy, and seamlessly falling back to CBF when facing zero-data environments.
+    **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine Fallback System**—using CF for highly-rated popular titles to maximize accuracy, and seamlessly falling back to stacked-metadata CBF when facing sparse or zero-data environments.
     """)
