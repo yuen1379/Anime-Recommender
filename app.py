@@ -21,13 +21,12 @@ st.set_page_config(page_title="Anime Dual-Engine Recommendation System", page_ic
 
 @st.cache_data
 def load_and_compute_models():
-    # 1. 基础数据加载与清洗
-    animes_df = pd.read_csv("anime_safe.csv")                     # ← 文件名改这里
-    animes_df['genre'] = animes_df['genre'].fillna('')            # ← genres_detailed -> genre
+    animes_df = pd.read_csv("anime_safe.csv")                     
+    animes_df['genre'] = animes_df['genre'].fillna('')         
     animes_df['type'] = animes_df['type'].fillna('Unknown')
     animes_df['rating'] = pd.to_numeric(animes_df['rating'], errors='coerce').fillna(6.0)  # ← score -> rating
 
-    # 简单逗号分割，不需要 ast.literal_eval
+
     def clean_tags(tag_str):
         if not tag_str:
             return []
@@ -47,7 +46,7 @@ def load_and_compute_models():
     # 3. CF 引擎
     cf_status = "OK"
     try:
-        rating_df = pd.read_csv("rating_safe.csv")                # ← 文件名改这里
+        rating_df = pd.read_csv("rating_safe.csv")             
         active_users = rating_df['user_id'].value_counts()        # ← userID -> user_id
         active_users = active_users[active_users >= 20].index
         filtered_ratings = rating_df[rating_df['user_id'].isin(active_users)]
@@ -98,7 +97,6 @@ def get_cbf_recommendations(anime_title, df, feature_matrix, top_k, selected_typ
 DARK_GENRE_FLAGS = ["Horror", "Psychological", "Gore", "Thriller"]
 
 def get_content_note(genre_str):
-    """功能 3：内容提醒"""
     if not genre_str:
         return None
     flags = [g for g in DARK_GENRE_FLAGS if g.lower() in genre_str.lower()]
@@ -107,7 +105,6 @@ def get_content_note(genre_str):
     return None
 
 def humanize_members(members):
-    """功能 4：人性化观看人数展示"""
     try:
         m = float(members)
     except (TypeError, ValueError):
@@ -120,14 +117,12 @@ def humanize_members(members):
         return f"❤️ Loved by {int(m)} fans"
 
 def get_rating_percentile(rating_value, all_ratings):
-    """功能：计算这部番的评分击败了库里百分之多少的番剧"""
     if pd.isna(rating_value):
         return None
     percentile = (all_ratings < rating_value).mean() * 100
     return round(percentile)
 
 def genre_overlap_percentage(target_genre_str, rec_genre_str):
-    """功能：计算目标番和推荐番之间genre标签的重合比例"""
     if not target_genre_str or not rec_genre_str:
         return 0
     target_set = set(g.strip().lower() for g in target_genre_str.split(',') if g.strip())
