@@ -336,7 +336,7 @@ with tab_trending:
 with tab_insights:
     st.subheader("📊 Model Evaluation (Offline Benchmark)")
     st.markdown("""
-    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (**296,466 test ratings**). UI dynamically loads Top-K values.*
+    *Note: Predictive performance metrics are strictly evaluated offline via train/test splitting (**329,973 test ratings**). UI dynamically loads Top-K values.*
     """)
 
     col1, col2, col3, col4 = st.columns(4)
@@ -386,7 +386,7 @@ with tab_insights:
     st.info("""
     **🎓 Final Verdict: Which model is more outstanding?**
 
-    * **Collaborative Filtering (CF)** swept all numerical metrics across the board (Accuracy, Precision, Recall, F1) because it effectively leverages actual human behavior and mitigates rating bias via Mean-Centering. It excels at predicting what users truly want, beating the generic Popularity Baseline by ~5.6x.
+    * **Collaborative Filtering (CF)** swept all numerical metrics across the board (Accuracy, Precision, Recall, F1) because it effectively leverages actual human behavior and mitigates rating bias via Mean-Centering. It excels at predicting what users truly want, beating the generic Popularity Baseline by ~5.9x.
     * **Content-Based Filtering (CBF)** may score lower in raw offline metrics, but it fundamentally solves the **'Cold-Start Problem'**. It requires zero historical user data, making it computationally essential for newly released anime, and provides vital system stability when CF fails.
 
     **System Architecture Conclusion:** Neither model is perfect alone. The most robust architecture is a **Dual-Engine Fallback System**—using CF for highly-rated popular titles to maximize accuracy, and seamlessly falling back to stacked-metadata CBF when facing sparse or zero-data environments.
