@@ -340,10 +340,10 @@ with tab_insights:
     """)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("CF RMSE", "1.116", "- Lower Error 🏆")
-    col2.metric("CBF RMSE", "1.311", "+ Higher Error")
-    col3.metric("CF Hit Rate (P@10)", "14.1%", "+ Better Relevance 🏆")
-    col4.metric("CBF Hit Rate (P@10)", "7.3%", "- Lower Relevance")
+    col1.metric("CF RMSE", "1.130", "- Lower Error 🏆")
+    col2.metric("CBF RMSE", "1.312", "+ Higher Error")
+    col3.metric("CF Hit Rate (P@10)", "13.6%", "+ Better Relevance 🏆")
+    col4.metric("CBF Hit Rate (P@10)", "7.1%", "- Lower Relevance")
 
     st.divider()
 
